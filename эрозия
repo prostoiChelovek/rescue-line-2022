@@ -1,0 +1,12 @@
+
+#эрозия, выделяет жирным контуры
+import cv2
+import numpy as np
+img = cv2.imread(r"C:\Users\User\Downloads\cb1\cb.jpg")
+
+cv2.destroyAllWindows()
+kernel = np.ones((5,5),np.int)
+erosion = cv2.erode(img,kernel,iterations = 3)
+cv2.imshow("window_name1",erosion)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
