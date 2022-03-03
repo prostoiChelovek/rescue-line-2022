@@ -1,5 +1,6 @@
 import numpy as np
 from cv2 import cv2 as cv
+from cv2 import ximgproc
 
 import random as rng
 
@@ -45,10 +46,26 @@ def main():
     mask = clean_mask(mask)
     cv.imshow("mask", mask)
 
-    contours, hierarchy = find_contours(mask)
-    contours_img = draw_contours(mask.shape, contours, hierarchy, thickness=cv.FILLED)
+    # contours, hierarchy = find_contours(mask)
+    # contours_img = draw_contours(mask.shape, contours, hierarchy, thickness=cv.FILLED)
 
-    cv.imshow("contours", contours_img)
+    x, y = np.where(mask == 255)
+    print(x, y)
+    params = np.polyfit(y, x, 2)
+    print(params)
+    a, b, c = params
+
+    start, stop = np.min(y), np.max(y)
+    xs = np.linspace(start, stop, stop - start)
+    ys = a * (xs ** 2) + b * xs + c
+    for x_, y_ in zip(xs, ys):
+        if y_ < img.shape[1]:
+            img[int(y_), int(x_)] = (255, 0, 0)
+
+    # thin = cv.ximgproc.thinning(mask)
+
+    # cv.imshow("contours", contours_img)
+    cv.imshow("img", img)
 
     while cv.waitKey(0) != 27: pass
 
