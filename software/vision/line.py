@@ -46,11 +46,8 @@ def main():
     mask = clean_mask(mask)
     cv.imshow("mask", mask)
 
-    # contours, hierarchy = find_contours(mask)
-    # contours_img = draw_contours(mask.shape, contours, hierarchy, thickness=cv.FILLED)
-
     x, y = np.where(mask == 255)
-    print(x, y)
+
     params = np.polyfit(y, x, 2)
     print(params)
     a, b, c = params
@@ -62,9 +59,6 @@ def main():
         if y_ < img.shape[1]:
             img[int(y_), int(x_)] = (255, 0, 0)
 
-    # thin = cv.ximgproc.thinning(mask)
-
-    # cv.imshow("contours", contours_img)
     cv.imshow("img", img)
 
     while cv.waitKey(0) != 27: pass
