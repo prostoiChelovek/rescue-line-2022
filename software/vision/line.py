@@ -38,6 +38,12 @@ def draw_contours(img_size, contours, hierarchy, thickness=1):
     return drawing
 
 
+def sample_function(params, values_range, resolution = 1):
+    start, stop = values_range
+    xs = np.linspace(start, stop, (stop - start) // resolution)
+    return xs, np.poly1d(params)(xs)
+
+
 def main():
     img = cv.imread(TEST_IMAGE)
     cv.imshow("test", img)
@@ -46,17 +52,16 @@ def main():
     mask = clean_mask(mask)
     cv.imshow("mask", mask)
 
-    x, y = np.where(mask == 255)
+    white_points = np.where(mask == 255)
+    y_range = np.min(white_points[1]), np.max(white_points[1])
 
-    params = np.polyfit(y, x, 2)
-    print(params)
-    a, b, c = params
+    params = np.polyfit(*white_points, deg=2, full=True)
+    params, residuals = params[:2]
+    print(params, residuals)
 
-    start, stop = np.min(y), np.max(y)
-    xs = np.linspace(start, stop, stop - start)
-    ys = a * (xs ** 2) + b * xs + c
-    for x_, y_ in zip(xs, ys):
-        if y_ < img.shape[1]:
+    x, y = sample_function(params, y_range)
+    for x_, y_ in zip(x, y):
+        if y_ < img.shape[0]:
             img[int(y_), int(x_)] = (255, 0, 0)
 
     cv.imshow("img", img)
