@@ -52,8 +52,8 @@ def main():
     mask = clean_mask(mask)
     cv.imshow("mask", mask)
 
-    white_points = np.where(mask == 255)
-    y_range = np.min(white_points[1]), np.max(white_points[1])
+    white_points = np.where(mask == 255)[::-1]
+    y_range = np.min(white_points[0]), np.max(white_points[0])
 
     params = np.polyfit(*white_points, deg=2, full=True)
     params, residuals = params[:2]
@@ -61,7 +61,7 @@ def main():
 
     x, y = sample_function(params, y_range)
     for x_, y_ in zip(x, y):
-        if y_ < img.shape[0]:
+        if 0 <= y_ < img.shape[0]:
             img[int(y_), int(x_)] = (255, 0, 0)
 
     cv.imshow("img", img)
