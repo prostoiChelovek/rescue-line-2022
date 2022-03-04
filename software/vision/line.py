@@ -53,12 +53,14 @@ def sample_function(params, values_range, resolution = 1):
 
 def polyfit_find(img):
     white_points = np.where(img == 255)[::-1]
-    y_range = np.min(white_points[0]), np.max(white_points[0])
+    white_points = np.flip(white_points)  # равносильно повороту изображения на 90 градусов
+    values_range = np.min(white_points[0]), np.max(white_points[0])
 
-    params = np.polyfit(*white_points, deg=2, full=True)
+    params = np.polyfit(*white_points, deg=6, full=True)
     params, residuals = params[:2]
 
-    cords = np.array(sample_function(params, y_range)).astype(int).T
+    cords = np.array(sample_function(params, values_range)).astype(int).T
+    cords = np.flip(cords, axis=1)
 
     greater_zero_filter = np.all(np.zeros((2,)) <= cords, axis=1)
     less_bound_filter = np.all(cords < img.shape[::-1], axis=1)
