@@ -44,6 +44,10 @@ def draw_contour(img_size, contours, hierarchy, i, thickness=1):
     return drawing
 
 
+def segment_unconnected(img):
+    contours, hierarchy = find_contours(img)
+    return [draw_contour(img.shape, contours, hierarchy, i, cv.FILLED) for i in range(len(contours))]
+
 
 def sample_function(params, values_range, resolution = 1):
     start, stop = values_range
@@ -76,8 +80,7 @@ def main():
     mask = clean_mask(mask)
     cv.imshow("mask", mask)
 
-    contours, hierarchy = find_contours(mask)
-    regions = [draw_contour(mask.shape, contours, hierarchy, i, cv.FILLED) for i in range(len(contours))]
+    regions = segment_unconnected(mask)
 
     for region in regions:
         x, y, residuals = polyfit_find(region)
