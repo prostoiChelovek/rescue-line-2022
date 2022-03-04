@@ -58,7 +58,13 @@ def polyfit_find(img):
     params = np.polyfit(*white_points, deg=2, full=True)
     params, residuals = params[:2]
 
-    return sample_function(params, y_range), residuals
+    cords = np.array(sample_function(params, y_range)).astype(int).T
+
+    greater_zero_filter = np.all(np.zeros((2,)) <= cords, axis=1)
+    less_bound_filter = np.all(cords < img.shape[::-1], axis=1)
+    cords = cords[greater_zero_filter & less_bound_filter]
+
+    return cords[:, 0], cords[:, 1], residuals
 
 
 def main():
@@ -72,12 +78,10 @@ def main():
     regions = [draw_contour(mask.shape, contours, hierarchy, i, cv.FILLED) for i in range(len(contours))]
 
     for region in regions:
-        (x, y), residuals = polyfit_find(region)
+        x, y, residuals = polyfit_find(region)
         print(residuals)
 
-        for x_, y_ in zip(x, y):
-            if 0 <= y_ < img.shape[0]:
-                img[int(y_), int(x_)] = (255, 0, 0)
+        img[y, x] = (255, 0, 0)
 
     cv.imshow("img", img)
 
