@@ -38,6 +38,13 @@ def draw_contours(img_size, contours, hierarchy, thickness=1):
     return drawing
 
 
+def draw_contour(img_size, contours, hierarchy, i, thickness=1):
+    drawing = np.zeros((img_size[0], img_size[1]), dtype=np.uint8)
+    cv.drawContours(drawing, contours, i, (255,), thickness, cv.LINE_8, hierarchy, 0)
+    return drawing
+
+
+
 def sample_function(params, values_range, resolution = 1):
     start, stop = values_range
     xs = np.linspace(start, stop, (stop - start) // resolution)
@@ -46,11 +53,13 @@ def sample_function(params, values_range, resolution = 1):
 
 def main():
     img = cv.imread(TEST_IMAGE)
-    cv.imshow("test", img)
 
     mask = cv.inRange(img, *LINE_COLOR_RANGE)
     mask = clean_mask(mask)
     cv.imshow("mask", mask)
+
+    contours, hierarchy = find_contours(mask)
+    regions = [draw_contour(mask.shape, contours, hierarchy, i, cv.FILLED) for i in range(len(contours))]
 
     white_points = np.where(mask == 255)[::-1]
     y_range = np.min(white_points[0]), np.max(white_points[0])
