@@ -6,10 +6,10 @@ import random as rng
 
 rng.seed(42)
 
-TEST_IMAGE = "test.png"
+TEST_IMAGE = "test-curve.png"
 LINE_COLOR_RANGE = (
         (0, 0, 0),
-        (50, 50, 50)
+        (100, 100, 100)
         )
 
 
@@ -87,21 +87,22 @@ def main():
     mask = clean_mask(mask)
     cv.imshow("mask", mask)
 
-    resolution = 3
-
     thin = ximgproc.thinning(mask)
-    thin = cv.resize(thin, (0, 0), fx=1.0 / resolution, fy=1.0 / resolution) 
     set_border(thin, 0)
 
-    white_points = np.where(thin != 0)[::-1]
-    white_points = np.array(white_points).astype(int).T
-    white_points *= resolution
-    x, y = white_points[:, 0], white_points[:, 1]
+    contours, _ = find_contours(thin)
+
+    approx_contours = []
+    eps = 0.004
+    for contour in contours:
+        peri = cv.arcLength(contour, True)
+        approx = cv.approxPolyDP(contour, eps * peri, closed=False)
+        approx_contours.append(approx)
+
+    for approx in approx_contours:
+        cv.drawContours(img, approx, -1, (255,), 1)
 
     cv.imshow("thin", thin)
-
-    img[y, x] = (255, 0, 0)
-
     cv.imshow("img", img)
 
     while cv.waitKey(0) != 27: pass
