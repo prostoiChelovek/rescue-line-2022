@@ -8,8 +8,8 @@ rng.seed(42)
 
 TEST_IMAGE = "test.png"
 LINE_COLOR_RANGE = (
-        (0, 0, 100),
-        (15, 35, 185)
+        (0, 0, 0),
+        (50, 50, 50)
         )
 
 
@@ -73,6 +73,13 @@ def polyfit_find(img):
     return cords[:, 0], cords[:, 1], residuals
 
 
+def set_border(a, val):
+    a[0, :] = val
+    a[-1, :] = val
+    a[:, 0] = val
+    a[:, -1] = val
+
+
 def main():
     img = cv.imread(TEST_IMAGE)
 
@@ -80,13 +87,20 @@ def main():
     mask = clean_mask(mask)
     cv.imshow("mask", mask)
 
-    regions = segment_unconnected(mask)
+    resolution = 3
 
-    for region in regions:
-        x, y, residuals = polyfit_find(region)
-        print(residuals)
+    thin = ximgproc.thinning(mask)
+    thin = cv.resize(thin, (0, 0), fx=1.0 / resolution, fy=1.0 / resolution) 
+    set_border(thin, 0)
 
-        img[y, x] = (255, 0, 0)
+    white_points = np.where(thin != 0)[::-1]
+    white_points = np.array(white_points).astype(int).T
+    white_points *= resolution
+    x, y = white_points[:, 0], white_points[:, 1]
+
+    cv.imshow("thin", thin)
+
+    img[y, x] = (255, 0, 0)
 
     cv.imshow("img", img)
 
