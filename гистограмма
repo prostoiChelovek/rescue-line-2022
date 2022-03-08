@@ -1,0 +1,19 @@
+import cv2 as cv
+import numpy as np
+import matplotlib.pyplot as plt
+img = cv.imread(r"C:\Users\User\Downloads\cb1\cb.jpg",0)
+#hist,bins = np.histogram(img.ravel(),256,[0,256])
+arr = np.asarray(img, dtype='uint8')#преобразует картинку в масив
+
+img[np.where(arr>=200)]=255
+
+img[np.where(arr<=200)]=0
+plt.hist(img.ravel(),20,[0,256])#число по серединке это перепрыг, те определяет чувствительность графика, на сколько частей он делит все эти 255 возможных вариантов пикселей
+plt.show()
+
+
+
+#img[np.where(bins<200)]=0
+#numpy.where(condition,a,b)
+#print(hist)
+#print(bins)
