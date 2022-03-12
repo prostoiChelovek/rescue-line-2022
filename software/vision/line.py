@@ -11,7 +11,6 @@ LINE_COLOR_RANGE = (
         (0, 0, 0),
         (100, 100, 100)
         )
-WINDOW_SIZE = (300, 50)
 
 
 def clean_mask(mask):
@@ -81,53 +80,30 @@ def set_border(a, val):
     a[:, -1] = val
 
 
-def create_window(img):
-    white_points = np.argwhere(img)
-    lowest_y = white_points.max(axis=0)[0]
-    lowest_row = white_points[white_points[:,0] == lowest_y]
-
-    center = lowest_row[len(lowest_row) // 2]
-    center = np.flip(center)
-    center[1] = min(center[1] - WINDOW_SIZE[1] // 2, img.shape[1])
-
-    half_window_size = np.array(WINDOW_SIZE) // 2
-    start = center - half_window_size
-    end = center + half_window_size
-
-    return tuple(start), tuple(end)
-
-
-def get_window_roi(window_pos):
-    start, end = window_pos
-    return np.ix_(range(start[1], end[1]), range(start[0], end[0]))
-
-
-def find_line_x_in_window(window):
-    white_points = np.argwhere(window)
-    left = white_points.min(axis=0)[1]
-    right = white_points.max(axis=0)[1]
-    center = left + (right - left) // 2
-    return center
-
 def main():
     img = cv.imread(TEST_IMAGE)
 
     mask = cv.inRange(img, *LINE_COLOR_RANGE)
     mask = clean_mask(mask)
     cv.imshow("mask", mask)
-    
-    window_pos = create_window(mask)
-    window_roi = get_window_roi(window_pos)
-    mask_roi = mask[window_roi]
 
-    center = find_line_x_in_window(mask_roi) + window_pos[1][1]
+    thin = ximgproc.thinning(mask)
+    set_border(thin, 0)
 
-    img[:,center] = (0, 255, 0)
+    contours, _ = find_contours(thin)
 
-    cv.rectangle(img, *window_pos, (255, 0, 0), 2)
+    approx_contours = []
+    eps = 0.004
+    for contour in contours:
+        peri = cv.arcLength(contour, True)
+        approx = cv.approxPolyDP(contour, eps * peri, closed=False)
+        approx_contours.append(approx)
 
+    for approx in approx_contours:
+        cv.drawContours(img, approx, -1, (255,), 1)
+
+    cv.imshow("thin", thin)
     cv.imshow("img", img)
-    cv.imshow("roi", mask_roi)
 
     while cv.waitKey(0) != 27: pass
 
