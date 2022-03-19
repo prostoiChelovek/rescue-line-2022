@@ -1,0 +1,24 @@
+[default.probe]
+protocol = "Swd"
+
+[default.flashing]
+enabled = true
+restore_unwritten_bytes = false
+
+[default.reset]
+enabled = true
+halt_afterwards = false
+
+[default.general]
+chip = "stm32f401re"
+chip_descriptions = []
+log_level = "WARN"
+
+[default.rtt]
+enabled = false
+timeout = 3000
+show_timestamps = true
+
+[default.gdb]
+enabled = true
+gdb_connection_string = "127.0.0.1:1337"
