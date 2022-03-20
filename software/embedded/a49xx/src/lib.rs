@@ -132,7 +132,13 @@ where
                 self.state_machine.consume(&state).unwrap();
                 self.update()
             },
-            _ => {todo!()}
+            StepperStateState::StopStepping => {
+                self.step_state_machine.consume(&StepStateInput::Stop).unwrap();
+                if self.step_state_machine.state() == &StepStateState::Idle {
+                    self.state_machine.consume(&StepperStateInput::Stopped).unwrap();
+                }
+                self.update()
+            }
         }
     }
 }
