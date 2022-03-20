@@ -17,7 +17,7 @@ mod app {
     };
     use fugit::{RateExtU32, HertzU32};
 
-    use a49xx::A49xx;
+    use a49xx::{A49xx, StepperDireciton};
 
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
@@ -29,7 +29,8 @@ mod app {
 
     #[local]
     struct Local {
-        speed: HertzU32
+        speed: HertzU32,
+        direction: StepperDireciton
     }
 
     #[init]
@@ -53,21 +54,30 @@ mod app {
                 stepper
             },
             Local {
-                speed: 1500_u32.Hz()
+                speed: 100_u32.Hz(),
+                direction: StepperDireciton::Clockwise
             },
             init::Monotonics(mono),
         )
     }
 
-    #[task(shared = [stepper], local = [speed])]
+    #[task(shared = [stepper], local = [speed, direction])]
     fn change_speed(mut cx: change_speed::Context) {
         cx.shared.stepper.lock(|stepper| {
             let speed = cx.local.speed;
+            let direction = cx.local.direction;
             *speed = *speed + 100_u32.Hz();
-            if *speed >= 1500_u32.Hz::<1_u32, 1_u32>() { *speed = 100_u32.Hz() }
+            if *speed >= 1500_u32.Hz::<1_u32, 1_u32>() {
+                *speed = 100_u32.Hz();
+                *direction = match *direction {
+                    StepperDireciton::Clockwise => { StepperDireciton::CounterClockwise },
+                    StepperDireciton::CounterClockwise => { StepperDireciton::Clockwise } 
+                };
+            }
 
             rprintln!("{}", speed);
             stepper.set_speed(*speed);
+            stepper.set_direciton(direction.clone());
         });
 
         change_speed::spawn_after(500_u32.millis()).ok();
