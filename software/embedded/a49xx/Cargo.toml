@@ -1,0 +1,10 @@
+[package]
+name = "a49xx"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+embedded-hal = { version = "0.2.6", features = ["unproven"] }
+fugit = "0.3.3"
+rust-fsm = { version = "0.6.0", default-features = false, features = ["dsl"] }
+

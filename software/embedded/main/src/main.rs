@@ -16,6 +16,8 @@ mod app {
         },
     };
 
+    use a49xx::A49xx;
+
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
 
@@ -24,9 +26,7 @@ mod app {
 
     #[local]
     struct Local {
-        step: PA8<Output<PushPull>>,
-        dir: PB10<Output<PushPull>>,
-        step_pulse: bool
+        stepper: A49xx<PA8<Output<PushPull>>, PB10<Output<PushPull>>>
     }
 
     #[init]
@@ -39,6 +39,8 @@ mod app {
         let (gpioa, gpiob) = (ctx.device.GPIOA.split(), ctx.device.GPIOB.split());
 
         let (step, dir) = (gpioa.pa8.into_push_pull_output(), gpiob.pb10.into_push_pull_output());
+        let mut stepper = A49xx::new(step, dir);
+        stepper.set_speed(42);
 
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 
@@ -47,8 +49,7 @@ mod app {
         (
             Shared { },
             Local {
-                step, dir,
-                step_pulse: false
+                stepper
             },
             init::Monotonics(mono),
         )
@@ -61,20 +62,13 @@ mod app {
         loop { }
     }
 
-    #[task(local = [step, dir, step_pulse], priority = 15)]
+    #[task(local = [stepper], priority = 15)]
     fn test(cx: test::Context) {
-        let (step, _dir) = (cx.local.step, cx.local.dir);
-        let step_pulse = cx.local.step_pulse;
-
-        step.toggle();
-        if !*step_pulse {
-            test::spawn_after(2.millis()).ok();
-            *step_pulse = true;
-        } else {
-            test::spawn_after(2.micros()).ok();
-            *step_pulse = false;
+        let stepper = cx.local.stepper;
+        let next_delay = stepper.update();
+        if let Some(next_delay) = next_delay {
+            test::spawn_after(next_delay).ok();
         }
-
     }
 }
 
