@@ -40,6 +40,7 @@ mod app {
     #[idle]
     fn idle(_: idle::Context) -> ! {
         rprintln!("Hello, world");
+
         loop { }
     }
 }
