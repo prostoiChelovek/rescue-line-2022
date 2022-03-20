@@ -17,6 +17,12 @@ state_machine! {
 
     StartStepLow(PulseStart) => StepLow,
     StepLow(PulseEnd) => StartStepHigh,
+
+    Idle(Stop) => Idle,
+    StartStepHigh(Stop) => Idle,
+    StepHigh(Stop) => StartStepLow [Stop],
+    StartStepLow(Stop) => Idle,
+    StepLow(Stop) => Idle,
 }
 
 pub struct A49xx<S, D>
@@ -55,6 +61,10 @@ where
             self.state_machine.consume(&StepperStateInput::Start).unwrap();
             (self.spawn_fn)();
         }
+    }
+
+    pub fn stop(&mut self) {
+        self.state_machine.consume(&StepperStateInput::Stop).unwrap();
     }
 
     pub fn update(&mut self) -> Option<MicrosDurationU32> {
