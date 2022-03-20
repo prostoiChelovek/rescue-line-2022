@@ -17,14 +17,14 @@ mod app {
     };
     use fugit::{RateExtU32, HertzU32};
 
-    use a49xx::{A49xx, StepperDireciton};
+    use stepper::{Stepper, StepperDireciton};
 
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
 
     #[shared]
     struct Shared {
-        stepper: A49xx<PA8<Output<PushPull>>, PB10<Output<PushPull>>>
+        stepper: Stepper<PA8<Output<PushPull>>, PB10<Output<PushPull>>>
     }
 
     #[local]
@@ -43,7 +43,7 @@ mod app {
         let (gpioa, gpiob) = (ctx.device.GPIOA.split(), ctx.device.GPIOB.split());
 
         let (step, dir) = (gpioa.pa8.into_push_pull_output(), gpiob.pb10.into_push_pull_output());
-        let stepper = A49xx::new(step, dir, || test::spawn().unwrap());
+        let stepper = Stepper::new(step, dir, || test::spawn().unwrap());
 
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 

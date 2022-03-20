@@ -31,7 +31,7 @@ state_machine! {
     StepLow(Stop) => Idle,
 }
 
-pub struct A49xx<S, D>
+pub struct Stepper<S, D>
 where
     S: OutputPin,
     D: OutputPin, {
@@ -49,7 +49,7 @@ where
     current_direction: Option<StepperDireciton>
 }
 
-impl<S, D> A49xx<S, D>
+impl<S, D> Stepper<S, D>
 where
     S: OutputPin,
     D: OutputPin, {
