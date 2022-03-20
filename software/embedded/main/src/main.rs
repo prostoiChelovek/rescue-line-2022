@@ -15,6 +15,7 @@ mod app {
             Output, PushPull
         },
     };
+    use fugit::RateExtU32;
 
     use a49xx::A49xx;
 
@@ -40,7 +41,7 @@ mod app {
 
         let (step, dir) = (gpioa.pa8.into_push_pull_output(), gpiob.pb10.into_push_pull_output());
         let mut stepper = A49xx::new(step, dir);
-        stepper.set_speed(42);
+        stepper.set_speed(1500_u32.Hz());
 
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 
