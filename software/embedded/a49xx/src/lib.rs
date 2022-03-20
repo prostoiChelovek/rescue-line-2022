@@ -22,19 +22,30 @@ state_machine! {
     derive(Debug, PartialEq)
     StepperState(Idle)
 
-    Idle(Start) => StartStepHigh,
-
-    StartStepHigh(PulseStart) => StepHigh,
-    StepHigh(PulseEnd) => StartStepLow,
-
-    StartStepLow(PulseStart) => StepLow,
-    StepLow(PulseEnd) => StartStepHigh,
-
+    Idle(Start) => StartStepping,
+    StartStepping(Started) => Stepping,
     Idle(Stop) => Idle,
-    StartStepHigh(Stop) => Idle,
-    StepHigh(Stop) => StartStepLow [Stop],
-    StartStepLow(Stop) => Idle,
-    StepLow(Stop) => Idle,
+
+    Stepping(Stop) => StopStepping,
+    StopStepping(Stopped) => Idle
+}
+
+state_machine! {
+    derive(Debug, PartialEq)
+    StepState(Idle)
+
+    Idle(Start) => StartHigh,
+
+    StartHigh(PulseStart) => High,
+    High(PulseEnd) => StartLow,
+
+    StartLow(PulseStart) => Low,
+    Low(PulseEnd) => StartHigh,
+
+    StartHigh(Stop) => Idle,
+    High(Stop) => StartLow [Stop],
+    StartLow(Stop) => Idle,
+    Low(Stop) => Idle,
 }
 
 pub struct A49xx<S, D>
@@ -48,6 +59,7 @@ where
     dir: D,
 
     state_machine: StateMachine<StepperState>,
+    step_state_machine: StateMachine<StepState>,
 
     spawn_fn: SpawnFn
 }
@@ -62,7 +74,10 @@ where
 
             step_delay: None,
             step, dir,
+
             state_machine: StateMachine::<StepperState>::new(),
+            step_state_machine: StateMachine::<StepState>::new(),
+
             spawn_fn
         }
     }
@@ -85,25 +100,39 @@ where
             return None;
         }
 
+        // TODO: control flow is fucked up
         match *self.state_machine.state() {
-            StepperStateState::Idle => { None }
-            StepperStateState::StartStepHigh => {
-                self.step.set_high().ok();
-                self.state_machine.consume(&StepperStateInput::PulseStart).unwrap();
-
-                Some(self.timings.pulse_width)
-            },
-            StepperStateState::StartStepLow => {
-                self.step.set_low().ok();
-                self.state_machine.consume(&StepperStateInput::PulseStart).unwrap();
-
-                Some(self.step_delay.unwrap())
-            },
-            StepperStateState::StepHigh | StepperStateState::StepLow => {
-                self.state_machine.consume(&StepperStateInput::PulseEnd).unwrap();
-
+            StepperStateState::Idle => { None },
+            StepperStateState::StartStepping => {
+                self.step_state_machine.consume(&StepStateInput::Start).unwrap();
+                self.state_machine.consume(&StepperStateInput::Started).unwrap();
                 self.update()
-            }
+            },
+            StepperStateState::Stepping => {
+                let state = match *self.step_state_machine.state() {
+                    StepStateState::Idle => { StepperStateInput::Stopped },
+                    StepStateState::StartHigh => {
+                        self.step.set_high().ok();
+                        self.step_state_machine.consume(&StepStateInput::PulseStart).unwrap();
+
+                        return Some(self.timings.pulse_width);
+                    },
+                    StepStateState::StartLow => {
+                        self.step.set_low().ok();
+                        self.step_state_machine.consume(&StepStateInput::PulseStart).unwrap();
+
+                        return Some(self.step_delay.unwrap());
+                    },
+                    StepStateState::High | StepStateState::Low => {
+                        self.step_state_machine.consume(&StepStateInput::PulseEnd).unwrap();
+
+                        return self.update();
+                    },
+                };
+                self.state_machine.consume(&state).unwrap();
+                self.update()
+            },
+            _ => {todo!()}
         }
     }
 }
