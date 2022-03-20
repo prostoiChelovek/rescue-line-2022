@@ -1,8 +1,14 @@
 #![no_std]
 
-use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::digital::v2::{OutputPin, PinState};
 use fugit::{ExtU32, MicrosDurationU32, HertzU32};
 use rust_fsm::*;
+
+#[derive(Debug, PartialEq, Clone,)]
+pub enum StepperDireciton {
+    Clockwise,
+    CounterClockwise
+}
 
 pub type SpawnFn = fn() -> ();
 
@@ -61,6 +67,17 @@ where
             self.state_machine.consume(&StepperStateInput::Start).unwrap();
             (self.spawn_fn)();
         }
+    }
+
+    pub fn set_direciton(&mut self, direction: StepperDireciton) {
+        // TODO: does not respect timings:
+        //       there should be a delay before and after step
+
+        let state = match direction {
+            StepperDireciton::Clockwise => { PinState::Low },
+            StepperDireciton::CounterClockwise => { PinState::High }
+        };
+        self.dir.set_state(state).ok();
     }
 
     pub fn stop(&mut self) {
