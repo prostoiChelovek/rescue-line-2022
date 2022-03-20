@@ -43,7 +43,10 @@ where
 
     state_machine: StateMachine<StepperState>,
 
-    spawn_fn: SpawnFn
+    spawn_fn: SpawnFn,
+
+    current_speed: Option<HertzU32>,
+    current_direction: Option<StepperDireciton>
 }
 
 impl<S, D> A49xx<S, D>
@@ -56,12 +59,15 @@ where
             step_delay: None,
             step, dir,
             state_machine: StateMachine::<StepperState>::new(),
-            spawn_fn
+            spawn_fn,
+            current_speed: None,
+            current_direction: None
         }
     }
 
     pub fn set_speed(&mut self, speed: HertzU32) {
         self.step_delay = Some(speed.into_duration());
+        self.current_speed = Some(speed);
 
         if *self.state_machine.state() == StepperStateState::Idle {
             self.state_machine.consume(&StepperStateInput::Start).unwrap();
@@ -78,11 +84,16 @@ where
             StepperDireciton::CounterClockwise => { PinState::High }
         };
         self.dir.set_state(state).ok();
+        self.current_direction = Some(direction);
     }
 
     pub fn stop(&mut self) {
         self.state_machine.consume(&StepperStateInput::Stop).unwrap();
     }
+
+    pub fn get_speed(&self) -> &Option<HertzU32> { &self.current_speed }
+
+    pub fn get_direction(&self) -> &Option<StepperDireciton> { &self.current_direction }
 
     pub fn update(&mut self) -> Option<MicrosDurationU32> {
         if self.step_delay.is_none() {
