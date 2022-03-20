@@ -5,7 +5,7 @@ use fugit::{ExtU32, MicrosDurationU32, HertzU32};
 use rust_fsm::*;
 
 state_machine! {
-    derive(Debug)
+    derive(Debug, PartialEq)
     StepperState(Idle)
 
     Idle(Start) => StartStepHigh,
@@ -44,7 +44,9 @@ where
     }
 
     pub fn set_speed(&mut self, speed: HertzU32) {
-        self.state_machine.consume(&StepperStateInput::Start).unwrap();
+        if *self.state_machine.state() == StepperStateState::Idle {
+            self.state_machine.consume(&StepperStateInput::Start).unwrap();
+        }
 
         self.step_delay = Some(speed.into_duration());
     }
