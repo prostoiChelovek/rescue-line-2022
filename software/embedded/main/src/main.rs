@@ -3,7 +3,7 @@
 
 use panic_probe as _;
 
-#[rtic::app(device = stm32f4xx_hal::pac, peripherals = true, dispatchers = [USART1])]
+#[rtic::app(device = stm32f4xx_hal::pac, peripherals = true, dispatchers = [EXTI1, EXTI2])]
 mod app {
     use rtt_target::{rtt_init_print, rprintln};
 
