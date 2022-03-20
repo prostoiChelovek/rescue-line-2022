@@ -15,7 +15,7 @@ mod app {
             Output, PushPull
         },
     };
-    use fugit::RateExtU32;
+    use fugit::{RateExtU32, HertzU32};
 
     use a49xx::A49xx;
 
@@ -23,11 +23,13 @@ mod app {
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
 
     #[shared]
-    struct Shared { }
+    struct Shared {
+        stepper: A49xx<PA8<Output<PushPull>>, PB10<Output<PushPull>>>
+    }
 
     #[local]
     struct Local {
-        stepper: A49xx<PA8<Output<PushPull>>, PB10<Output<PushPull>>>
+        speed: HertzU32
     }
 
     #[init]
@@ -46,30 +48,41 @@ mod app {
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 
         test::spawn().ok();
+        change_speed::spawn().ok();
 
         (
-            Shared { },
-            Local {
+            Shared {
                 stepper
+            },
+            Local {
+                speed: 1500_u32.Hz()
             },
             init::Monotonics(mono),
         )
     }
 
-    #[idle]
-    fn idle(_: idle::Context) -> ! {
-        rprintln!("Hello, world");
+    #[task(shared = [stepper], local = [speed])]
+    fn change_speed(mut cx: change_speed::Context) {
+        cx.shared.stepper.lock(|stepper| {
+            let speed = cx.local.speed;
+            *speed = *speed + 100_u32.Hz();
+            if *speed >= 1500_u32.Hz::<1_u32, 1_u32>() { *speed = 100_u32.Hz() }
 
-        loop { }
+            rprintln!("{}", speed);
+            stepper.set_speed(*speed);
+        });
+
+        change_speed::spawn_after(500_u32.millis()).ok();
     }
 
-    #[task(local = [stepper], priority = 15)]
-    fn test(cx: test::Context) {
-        let stepper = cx.local.stepper;
-        let next_delay = stepper.update();
-        if let Some(next_delay) = next_delay {
-            test::spawn_after(next_delay).ok();
-        }
+    #[task(shared = [stepper], priority = 15)]
+    fn test(mut cx: test::Context) {
+        cx.shared.stepper.lock(|stepper| {
+            let next_delay = stepper.update();
+            if let Some(next_delay) = next_delay {
+                test::spawn_after(next_delay).ok();
+            }
+        });
     }
 }
 
