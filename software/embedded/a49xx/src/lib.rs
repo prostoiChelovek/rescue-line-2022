@@ -4,6 +4,8 @@ use embedded_hal::digital::v2::OutputPin;
 use fugit::{ExtU32, MicrosDurationU32, HertzU32};
 use rust_fsm::*;
 
+pub type SpawnFn = fn() -> ();
+
 state_machine! {
     derive(Debug, PartialEq)
     StepperState(Idle)
@@ -27,28 +29,32 @@ where
     step: S,
     dir: D,
 
-    state_machine: StateMachine<StepperState>
+    state_machine: StateMachine<StepperState>,
+
+    spawn_fn: SpawnFn
 }
 
 impl<S, D> A49xx<S, D>
 where
     S: OutputPin,
     D: OutputPin, {
-    pub fn new(step: S, dir: D) -> Self {
+    pub fn new(step: S, dir: D, spawn_fn: SpawnFn) -> Self {
         Self {
             pulse_width: 2_u32.micros(),
             step_delay: None,
             step, dir,
-            state_machine: StateMachine::<StepperState>::new()
+            state_machine: StateMachine::<StepperState>::new(),
+            spawn_fn
         }
     }
 
     pub fn set_speed(&mut self, speed: HertzU32) {
+        self.step_delay = Some(speed.into_duration());
+
         if *self.state_machine.state() == StepperStateState::Idle {
             self.state_machine.consume(&StepperStateInput::Start).unwrap();
+            (self.spawn_fn)();
         }
-
-        self.step_delay = Some(speed.into_duration());
     }
 
     pub fn update(&mut self) -> Option<MicrosDurationU32> {

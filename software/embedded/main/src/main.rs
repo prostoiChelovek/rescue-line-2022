@@ -42,12 +42,10 @@ mod app {
         let (gpioa, gpiob) = (ctx.device.GPIOA.split(), ctx.device.GPIOB.split());
 
         let (step, dir) = (gpioa.pa8.into_push_pull_output(), gpiob.pb10.into_push_pull_output());
-        let mut stepper = A49xx::new(step, dir);
-        stepper.set_speed(1500_u32.Hz());
+        let stepper = A49xx::new(step, dir, || test::spawn().unwrap());
 
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 
-        test::spawn().ok();
         change_speed::spawn().ok();
 
         (
