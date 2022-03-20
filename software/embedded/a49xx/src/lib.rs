@@ -6,6 +6,18 @@ use rust_fsm::*;
 
 pub type SpawnFn = fn() -> ();
 
+pub struct StepperTimings {
+    pub pulse_width: MicrosDurationU32,
+}
+
+impl Default for StepperTimings {
+    fn default() -> Self {
+        Self {
+            pulse_width: 1_u32.micros()
+        }
+    }
+}
+
 state_machine! {
     derive(Debug, PartialEq)
     StepperState(Idle)
@@ -29,7 +41,7 @@ pub struct A49xx<S, D>
 where
     S: OutputPin,
     D: OutputPin, {
-    pub pulse_width: MicrosDurationU32,
+    pub timings: StepperTimings,
     step_delay: Option<MicrosDurationU32>,
 
     step: S,
@@ -46,7 +58,8 @@ where
     D: OutputPin, {
     pub fn new(step: S, dir: D, spawn_fn: SpawnFn) -> Self {
         Self {
-            pulse_width: 2_u32.micros(),
+            timings: Default::default(),
+
             step_delay: None,
             step, dir,
             state_machine: StateMachine::<StepperState>::new(),
@@ -78,7 +91,7 @@ where
                 self.step.set_high().ok();
                 self.state_machine.consume(&StepperStateInput::PulseStart).unwrap();
 
-                Some(self.pulse_width)
+                Some(self.timings.pulse_width)
             },
             StepperStateState::StartStepLow => {
                 self.step.set_low().ok();
