@@ -9,24 +9,6 @@ pub const ECC_LEN: usize = 8;
 pub type MessageBuffer = Vec<u8, MAX_MESSAGE_LEN>;
 pub type IdType = u32;
 
-#[derive(Debug)]
-pub enum MessageDeserializeErorr {
-    Ecc(reed_solomon::DecoderError),
-    Decode(DecodeError)
-}
-
-impl From<reed_solomon::DecoderError> for MessageDeserializeErorr {
-    fn from(err: reed_solomon::DecoderError) -> Self {
-        Self::Ecc(err)
-    }
-}
-
-impl From<DecodeError> for MessageDeserializeErorr {
-    fn from(err: DecodeError) -> Self {
-        Self::Decode(err)
-    }
-}
-
 #[derive(Encode, Decode, PartialEq, Debug)]
 pub enum Message {
     Command(IdType, Command),
@@ -35,7 +17,7 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn serialize(&self) -> Result<MessageBuffer, EncodeError> {
+    pub fn serialize(&self) -> Result<MessageBuffer, MessageSerializeErorr> {
         let mut buffer: MessageBuffer = Vec::new();
         buffer.resize(buffer.capacity(), 0).unwrap();
 
@@ -63,6 +45,34 @@ impl Message {
     }
 }
 
+#[derive(Debug)]
+pub enum MessageSerializeErorr {
+    Encode(EncodeError)
+}
+
+impl From<EncodeError> for MessageSerializeErorr {
+    fn from(err: EncodeError) -> Self {
+        Self::Encode(err)
+    }
+}
+
+#[derive(Debug)]
+pub enum MessageDeserializeErorr {
+    Ecc(reed_solomon::DecoderError),
+    Decode(DecodeError)
+}
+
+impl From<reed_solomon::DecoderError> for MessageDeserializeErorr {
+    fn from(err: reed_solomon::DecoderError) -> Self {
+        Self::Ecc(err)
+    }
+}
+
+impl From<DecodeError> for MessageDeserializeErorr {
+    fn from(err: DecodeError) -> Self {
+        Self::Decode(err)
+    }
+}
 
 #[cfg(test)]
 mod tests {
