@@ -8,7 +8,7 @@ default = ["std"]
 std = ["bincode/std"]
 
 [dependencies]
-bincode = { vesion = "1.3.3", features = ["derive"], default-features = false}
+bincode = { version = "2.0.0-rc.1", features = ["derive"], default-features = false}
 heapless = "0.7.10"
 reed-solomon = "0.2.1"
 
