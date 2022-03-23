@@ -14,6 +14,8 @@ use crate::{
     },
 };
 
+use core::ops::Deref;
+
 use serial_int::SerialGenerator;
 use heapless::{spsc::Queue, FnvIndexMap};
 
@@ -39,7 +41,7 @@ impl Interfacing {
         }
     }
 
-    pub fn execute(&mut self, command: Command) -> Result<IdType, MessageSerializeErorr> {
+    pub fn execute(&mut self, command: Command) -> Result<CommandId, MessageSerializeErorr> {
         let id = self.id_generator.generate();
         let msg = Message::Command(id, command.clone());
         let encoded = msg.serialize()?;
@@ -47,16 +49,16 @@ impl Interfacing {
         self.commands.insert(id, CommandHandle::new(command)).unwrap();
         self.send.enqueue(encoded).unwrap();
 
-        Ok(id)
+        Ok(CommandId::new(id))
     }
 
-    pub fn update(&mut self) -> Result<Option<IdType>, UpdateErorr> {
+    pub fn update(&mut self) -> Result<Option<CommandId>, UpdateErorr> {
         if let Some(received) = self.received.dequeue() {
             let message = Message::deserialize(&received)?;
             match message {
                 Message::Command(id, cmd) => {
                     self.commands.insert(id, CommandHandle::new(cmd)).unwrap();
-                    Ok(Some(id))
+                    Ok(Some(CommandId::new(id)))
                 },
                 Message::Ack(id) => {
                     let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
@@ -74,7 +76,7 @@ impl Interfacing {
         }
     }
 
-    pub fn get_handle(&mut self, id: IdType) -> &mut CommandHandle {
+    pub fn get_handle(&mut self, id: CommandId) -> &mut CommandHandle {
         &mut self.commands[&id]
     }
 
@@ -85,6 +87,21 @@ impl Interfacing {
     pub fn set_received_message(&mut self, message: MessageBuffer) {
         self.received.enqueue(message).unwrap();
     }
+}
+
+pub struct CommandId(IdType);
+
+impl CommandId {
+    pub(crate) fn new(id: IdType) -> Self { Self { 0: id } }
+}
+
+impl Deref for CommandId {
+    type Target = IdType;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl From<CommandId> for IdType {
+    fn from(id: CommandId) -> Self { *id }
 }
 
 #[derive(Debug, PartialEq)]
@@ -165,7 +182,7 @@ mod tests {
         let mut i = Interfacing::new();
         let id = i.execute(Command::Stop).unwrap();
 
-        let msg = Message::Done(id);
+        let msg = Message::Done(*id);
         i.set_received_message(msg.serialize().unwrap());
         assert!(i.update().unwrap().is_none());
 
