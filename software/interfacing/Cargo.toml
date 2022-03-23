@@ -11,4 +11,5 @@ std = ["bincode/std"]
 bincode = { version = "2.0.0-rc.1", features = ["derive"], default-features = false}
 heapless = "0.7.10"
 reed-solomon = "0.2.1"
+serial_int = "2.0.0"
 

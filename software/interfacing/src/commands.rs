@@ -1,6 +1,6 @@
 use bincode::{Decode, Encode};
 
-#[derive(Encode, Decode, PartialEq, Debug)]
+#[derive(Clone, Copy, Encode, Decode, PartialEq, Debug)]
 pub enum Command {
     Stop,
     SetSpeed(SetSpeedParams),
@@ -10,7 +10,7 @@ pub enum Command {
     LowerGripper
 }
 
-#[derive(Encode, Decode, PartialEq, Debug)]
+#[derive(Clone, Copy, Encode, Decode, PartialEq, Debug)]
 pub struct SetSpeedParams {
     pub left: i32,
     pub right: i32
