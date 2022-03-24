@@ -11,7 +11,7 @@ mod app {
         prelude::*, pac,
         timer::{monotonic::MonoTimer, Timer},
         gpio::{
-            gpioa::PA8, gpiob::PB10,
+            gpioa::{PA8, PA10}, gpiob::{PB3, PB10, PB5, PB4},
             Output, PushPull
         },
     };
@@ -24,7 +24,8 @@ mod app {
 
     #[shared]
     struct Shared {
-        stepper: Stepper<PA8<Output<PushPull>>, PB10<Output<PushPull>>>
+        right_stepper: Stepper<PB10<Output<PushPull>>, PA8<Output<PushPull>>>,
+        left_stepper: Stepper<PA10<Output<PushPull>>, PB3<Output<PushPull>>>
     }
 
     #[local]
@@ -42,28 +43,44 @@ mod app {
 
         let (gpioa, gpiob) = (ctx.device.GPIOA.split(), ctx.device.GPIOB.split());
 
-        let (step, dir) = (gpioa.pa8.into_push_pull_output(), gpiob.pb10.into_push_pull_output());
-        let stepper = Stepper::new(step, dir, || test::spawn().unwrap());
+        let right_stepper = {
+            let (step, dir) = (gpiob.pb10.into_push_pull_output(), gpioa.pa8.into_push_pull_output());
+            let mut stepper = Stepper::new(step, dir, || test::spawn().unwrap());
+            stepper.set_direciton(StepperDireciton::CounterClockwise);
+            stepper.set_speed(5_u32.Hz());
+            stepper
+        };
+
+        let left_stepper = {
+            let (step, dir) = (gpioa.pa10.into_push_pull_output(), gpiob.pb3.into_push_pull_output());
+            let mut stepper = Stepper::new(step, dir, || right::spawn().unwrap());
+            stepper.set_direciton(StepperDireciton::Clockwise);
+            stepper.set_speed(5_u32.Hz());
+            stepper
+        };
+
+
 
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 
-        change_speed::spawn().ok();
+        //change_speed::spawn().ok();
 
         (
             Shared {
-                stepper
+                left_stepper,
+                right_stepper
             },
             Local {
-                speed: 100_u32.Hz(),
+                speed: 400_u32.Hz(),
                 direction: StepperDireciton::Clockwise
             },
             init::Monotonics(mono),
         )
     }
 
-    #[task(shared = [stepper], local = [speed, direction])]
+    #[task(shared = [left_stepper], local = [speed, direction])]
     fn change_speed(mut cx: change_speed::Context) {
-        cx.shared.stepper.lock(|stepper| {
+        cx.shared.left_stepper.lock(|stepper| {
             let speed = cx.local.speed;
             let direction = cx.local.direction;
             *speed = *speed + 100_u32.Hz();
@@ -83,12 +100,22 @@ mod app {
         change_speed::spawn_after(500_u32.millis()).ok();
     }
 
-    #[task(shared = [stepper], priority = 15)]
+    #[task(shared = [left_stepper], priority = 15)]
     fn test(mut cx: test::Context) {
-        cx.shared.stepper.lock(|stepper| {
+        cx.shared.left_stepper.lock(|stepper| {
             let next_delay = stepper.update();
             if let Some(next_delay) = next_delay {
                 test::spawn_after(next_delay).ok();
+            }
+        });
+    }
+
+    #[task(shared = [right_stepper], priority = 15)]
+    fn right(mut cx: right::Context) {
+        cx.shared.right_stepper.lock(|stepper| {
+            let next_delay = stepper.update();
+            if let Some(next_delay) = next_delay {
+                right::spawn_after(next_delay).ok();
             }
         });
     }
