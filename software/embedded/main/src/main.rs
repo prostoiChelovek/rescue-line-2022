@@ -11,7 +11,7 @@ mod app {
         prelude::*, pac,
         timer::{monotonic::MonoTimer, Timer},
         gpio::{
-            gpioa::{PA8, PA10}, gpiob::{PB3, PB10, PB5, PB4},
+            gpioa::PA10, gpiob::{PB3, PB10, PB4},
             Output, PushPull
         },
     };
@@ -24,8 +24,8 @@ mod app {
 
     #[shared]
     struct Shared {
-        right_stepper: Stepper<PB10<Output<PushPull>>, PA8<Output<PushPull>>>,
-        left_stepper: Stepper<PA10<Output<PushPull>>, PB3<Output<PushPull>>>
+        left_stepper: Stepper<PA10<Output<PushPull>>, PB4<Output<PushPull>>>,
+        right_stepper: Stepper<PB3<Output<PushPull>>, PB10<Output<PushPull>>>
     }
 
     #[local]
@@ -43,19 +43,22 @@ mod app {
 
         let (gpioa, gpiob) = (ctx.device.GPIOA.split(), ctx.device.GPIOB.split());
 
-        let right_stepper = {
-            let (step, dir) = (gpiob.pb10.into_push_pull_output(), gpioa.pa8.into_push_pull_output());
+        let mut en = gpioa.pa9.into_push_pull_output();
+        en.set_low();
+        
+        let left_stepper = {
+            let (step, dir) = (gpioa.pa10.into_push_pull_output(), gpiob.pb4.into_push_pull_output());
             let mut stepper = Stepper::new(step, dir, || test::spawn().unwrap());
             stepper.set_direciton(StepperDireciton::CounterClockwise);
-            stepper.set_speed(5_u32.Hz());
+            stepper.set_speed(400_u32.Hz());
             stepper
         };
 
-        let left_stepper = {
-            let (step, dir) = (gpioa.pa10.into_push_pull_output(), gpiob.pb3.into_push_pull_output());
+        let right_stepper = {
+            let (step, dir) = (gpiob.pb3.into_push_pull_output(), gpiob.pb10.into_push_pull_output());
             let mut stepper = Stepper::new(step, dir, || right::spawn().unwrap());
-            stepper.set_direciton(StepperDireciton::Clockwise);
-            stepper.set_speed(5_u32.Hz());
+            stepper.set_direciton(StepperDireciton::CounterClockwise);
+            stepper.set_speed(100_u32.Hz());
             stepper
         };
 
