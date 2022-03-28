@@ -87,8 +87,13 @@ impl Interfacing {
     pub fn set_received_message(&mut self, message: MessageBuffer) {
         self.received.enqueue(message).unwrap();
     }
+
+    pub fn ack_finish(&mut self, id: CommandId) {
+        self.commands.remove(&id);
+    }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct CommandId(IdType);
 
 impl CommandId {
@@ -154,6 +159,7 @@ impl From<MessageDeserializeErorr> for UpdateErorr {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::vec::Vec;
 
     #[test]
     fn execute_handle_test() {
@@ -188,6 +194,30 @@ mod tests {
 
         let handle = i.get_handle(id);
         assert!(handle.is_finished());
+    }
+
+    #[test]
+    fn many_commands_test() {
+        let mut i = Interfacing::new();
+        for _ in 0..50 {
+            let mut ids: Vec<CommandId> = Vec::new();
+
+            for _ in 0..REGISTRY_CAPACITY {
+                let id = i.execute(Command::Stop).unwrap();
+                assert!(i.get_message_to_send().is_some());
+                ids.push(id);
+            }
+            for id in &ids {
+                let msg = Message::Done(**id);
+                i.set_received_message(msg.serialize().unwrap());
+                assert!(i.update().unwrap().is_none());
+            }
+            for id in ids {
+                let handle = i.get_handle(id);
+                assert!(handle.is_finished());       
+                i.ack_finish(id);
+            }
+        }
     }
 }
 
