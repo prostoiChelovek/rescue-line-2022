@@ -14,10 +14,13 @@ use crate::{
     },
 };
 
-use core::ops::Deref;
+use core::{ops::Deref, mem::take};
 
 use serial_int::SerialGenerator;
 use heapless::{spsc::Queue, FnvIndexMap};
+
+pub const BAUD_RATE: usize = 115200;
+pub const START_BYTE: u8 = 0b1010101;
 
 const INTERFACING_QUEUE_SIZE: usize = 2;
 const REGISTRY_CAPACITY: usize = 4;
@@ -44,7 +47,10 @@ impl Interfacing {
     pub fn execute(&mut self, command: Command) -> Result<CommandId, MessageSerializeErorr> {
         let id = self.id_generator.generate();
         let msg = Message::Command(id, command.clone());
-        let encoded = msg.serialize()?;
+
+        let mut encoded = msg.serialize()?;
+        Self::add_message_preamble(&mut encoded);
+        let encoded = encoded;
 
         self.commands.insert(id, CommandHandle::new(command)).unwrap();
         self.send.enqueue(encoded).unwrap();
@@ -84,12 +90,21 @@ impl Interfacing {
         self.send.dequeue()
     }
 
+    /// message should not contain preamble
     pub fn set_received_message(&mut self, message: MessageBuffer) {
         self.received.enqueue(message).unwrap();
     }
 
     pub fn ack_finish(&mut self, id: CommandId) {
         self.commands.remove(&id);
+    }
+
+    fn add_message_preamble(msg: &mut MessageBuffer) {
+        let mut tmp = MessageBuffer::new();
+        tmp.push(START_BYTE).unwrap();
+        tmp.push(msg.len().try_into().unwrap()).unwrap();
+        tmp.extend_from_slice(&msg[..]).unwrap();
+        *msg = take(&mut tmp);
     }
 }
 
