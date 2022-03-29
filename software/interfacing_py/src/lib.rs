@@ -5,7 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use derive_more::Display;
 
-#[pyclass]
+#[pyclass(subclass)]
 pub struct Interfacing(interfacing::Interfacing);
 
 #[derive(Clone, Debug, FromPyObject)]

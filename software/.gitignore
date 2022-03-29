@@ -11,3 +11,8 @@ Cargo.lock
 **/*.rs.bk
 
 .env/
+
+__pycache__
+
+**/*.so
+
