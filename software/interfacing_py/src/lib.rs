@@ -71,6 +71,29 @@ impl TryFrom<PyCommand> for interfacing::commands::Command {
 #[derive(Clone, Copy)]
 pub struct CommandId(interfacing::CommandId);
 
+#[pymethods]
+impl CommandId {
+    pub fn __str__(&self) -> String {
+        self.0.to_string()
+    }
+}
+
+#[pyclass]
+pub struct CommandHandle(interfacing::CommandHandle);
+
+#[pyclass]
+#[derive(Clone, PartialEq, Debug)]
+pub struct MessageBuffer(interfacing::message::MessageBuffer);
+
+#[pymethods]
+impl MessageBuffer {
+    #[new]
+    pub fn new(obj: &PyAny) -> PyResult<Self> {
+        let vec: Vec<u8> = obj.extract()?;
+        Ok(Self(interfacing::message::MessageBuffer::from_iter(vec.into_iter())))
+    }
+}
+
 #[pyclass]
 #[derive(Debug, Display)]
 #[display(fmt = "Cannot deserialize a message: {}", "0")]
@@ -97,6 +120,19 @@ impl From<MessageSerializeErorr> for PyErr {
     }
 }
 
+#[pyclass]
+#[derive(Debug, Display)]
+#[display(fmt = "Update failed: {:?}", "self.0")]
+pub struct UpdateErorr(interfacing::UpdateErorr);
+
+impl std::error::Error for UpdateErorr {}
+
+impl From<UpdateErorr> for PyErr {
+    fn from(err: UpdateErorr) -> PyErr {
+        PyException::new_err(err.to_string())
+    }
+}
+
 #[pymethods]
 impl Interfacing {
     #[new]
@@ -109,6 +145,37 @@ impl Interfacing {
             .map_err(|e| MessageSerializeErorr(e))?;
         Ok(CommandId(result))
     }
+
+    pub fn update(&mut self) -> PyResult<Option<CommandId>> {
+        Ok(self.0.update().map(|r| r.map(|s| CommandId(s))).map_err(|e| UpdateErorr(e))?)
+    }
+
+    // TODO: figure out how to do this properly
+    /*
+    pub fn get_handle(&mut self, id: CommandId) -> Py<CommandHandle> {
+        let handle = self.0.get_handle(id.0);
+        Python::with_gil(|py| -> PyResult<Py<CommandHandle>> {
+            let foo: Py<CommandHandle> = Py::new(py, CommandHandle(*handle))?;
+            Ok(foo)
+        }).unwrap()
+    }
+    */
+
+    pub fn check_finished(&mut self, id: CommandId) -> bool {
+        self.0.get_handle(id.0).is_finished()
+    }
+
+    pub fn get_message_to_send(&mut self) -> Option<MessageBuffer> {
+        self.0.get_message_to_send().map(|m| MessageBuffer(m))
+    }
+
+    pub fn set_received_message(&mut self, message: MessageBuffer) {
+        self.0.set_received_message(message.0)
+    }
+
+    pub fn ack_finish(&mut self, id: CommandId) {
+        self.0.ack_finish(id.0)
+    }
 }
 
 #[pymodule]
@@ -116,6 +183,7 @@ fn interfacing_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyCommand>()?;
     m.add_class::<SetSpeedParams>()?;
     m.add_class::<Command>()?;
+    m.add_class::<MessageBuffer>()?;
     m.add_class::<Interfacing>()?;
 
     Ok(())
