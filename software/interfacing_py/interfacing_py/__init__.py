@@ -15,6 +15,7 @@ class InterfacingManager(Interfacing):
         self._command_futures: Dict[CommandId, asyncio.Future] = {}
 
         asyncio.create_task(self._updater())
+        asyncio.create_task(self._sender())
 
     async def _read_message(self):
         await self._serial.read_until_async(bytes(self.START_BYTE))
@@ -35,11 +36,19 @@ class InterfacingManager(Interfacing):
                         self.ack_finish(handle)
                         del self._command_futures[handle]
 
-                to_send = self.get_message_to_send()
-                if to_send is not None:
-                    await self._serial.write_async(bytes(to_send))
             except Exception:
                 self._logger.exception("Error while running update loop")
+
+    async def _sender(self):
+        while True:
+            try:
+                to_send = self.get_message_to_send()
+                if to_send is not None:
+                    print(list(to_send))
+                    await self._serial.write_async(bytes(to_send))
+                await asyncio.sleep(0.1)
+            except Exception:
+                self._logger.exception("Error while running send loop")
 
     def execute(self, cmd: PyCommand) -> asyncio.Future:
         handle = super().execute(cmd)
