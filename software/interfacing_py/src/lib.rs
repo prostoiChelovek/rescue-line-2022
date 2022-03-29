@@ -198,6 +198,18 @@ impl Interfacing {
     pub fn ack_finish(&mut self, id: CommandId) {
         self.0.ack_finish(id.0)
     }
+
+    #[classattr]
+    #[allow(non_snake_case)]
+    pub fn BAUD_RATE() -> usize {
+        interfacing::BAUD_RATE
+    }
+
+    #[classattr]
+    #[allow(non_snake_case)]
+    pub fn START_BYTE() -> u8 {
+        interfacing::START_BYTE
+    }
 }
 
 #[pymodule]
