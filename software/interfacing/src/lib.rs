@@ -18,7 +18,7 @@ use core::{ops::Deref, mem::take};
 
 use heapless::{spsc::Queue, FnvIndexMap};
 
-pub const BAUD_RATE: usize = 115200;
+pub const BAUD_RATE: u32 = 115200;
 pub const START_BYTE: u8 = 0b1010101;
 
 const INTERFACING_QUEUE_SIZE: usize = 2;
