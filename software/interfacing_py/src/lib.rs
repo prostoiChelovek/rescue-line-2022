@@ -1,3 +1,5 @@
+#![feature(arbitrary_self_types)]
+
 use pyo3::exceptions::PyException;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -91,6 +93,26 @@ impl MessageBuffer {
     pub fn new(obj: &PyAny) -> PyResult<Self> {
         let vec: Vec<u8> = obj.extract()?;
         Ok(Self(interfacing::message::MessageBuffer::from_iter(vec.into_iter())))
+    }
+
+    fn __iter__(self: PyRef<Self>) -> PyResult<Py<MessageBufferIterator>> {
+        // TODO: clone is kinda inefficient, but i dunno how to get rid of it
+        //       and it's not that big of a deal anyway
+        let iter = MessageBufferIterator(self.0.clone().into_iter());
+        Py::new(self.py(), iter)
+    }
+}
+
+#[pyclass]
+pub struct MessageBufferIterator(<interfacing::message::MessageBuffer as IntoIterator>::IntoIter);
+
+#[pymethods]
+impl MessageBufferIterator {
+    fn __iter__<'a>(self: PyRef<'a, Self>) -> PyRef<'a, Self> {
+        self
+    }
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<<interfacing::message::MessageBuffer as IntoIterator>::Item> {
+        slf.0.next()
     }
 }
 
