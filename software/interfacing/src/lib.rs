@@ -16,7 +16,6 @@ use crate::{
 
 use core::{ops::Deref, mem::take};
 
-use serial_int::SerialGenerator;
 use heapless::{spsc::Queue, FnvIndexMap};
 
 pub const BAUD_RATE: usize = 115200;
@@ -29,7 +28,7 @@ pub struct Interfacing {
     received: Queue<MessageBuffer, INTERFACING_QUEUE_SIZE>,
     send: Queue<MessageBuffer, INTERFACING_QUEUE_SIZE>,
 
-    id_generator: SerialGenerator<IdType>,
+    next_id: u32,
 
     commands: FnvIndexMap<IdType, CommandHandle, REGISTRY_CAPACITY>
 }
@@ -39,13 +38,15 @@ impl Interfacing {
         Self { 
             received: Queue::new(),
             send: Queue::new(),
-            id_generator: SerialGenerator::new(),
+            next_id: 0,
             commands: FnvIndexMap::new()
         }
     }
 
     pub fn execute(&mut self, command: Command) -> Result<CommandId, MessageSerializeErorr> {
-        let id = self.id_generator.generate();
+        let id = self.next_id;
+        self.next_id += 1;
+
         let msg = Message::Command(id, command.clone());
 
         let mut encoded = msg.serialize()?;
