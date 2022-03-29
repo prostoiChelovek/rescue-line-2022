@@ -17,7 +17,7 @@ class InterfacingManager(Interfacing):
         asyncio.create_task(self._updater())
 
     async def _read_message(self):
-        await self._serial.read_until_async(self.START_BYTE)
+        await self._serial.read_until_async(bytes(self.START_BYTE))
         len = await self._serial.read_async(size = 1)
         return await self._serial.read_async(size = int(len))
 
@@ -42,7 +42,7 @@ class InterfacingManager(Interfacing):
                 self._logger.exception("Error while running update loop")
 
     def execute(self, cmd: PyCommand) -> asyncio.Future:
-        handle = super().execute(self, cmd)
+        handle = super().execute(cmd)
         future = asyncio.get_event_loop().create_future()
         self._command_futures[handle] = future
         return self._command_futures[handle]
