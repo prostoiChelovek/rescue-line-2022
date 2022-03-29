@@ -217,6 +217,7 @@ fn interfacing_py(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyCommand>()?;
     m.add_class::<SetSpeedParams>()?;
     m.add_class::<Command>()?;
+    m.add_class::<CommandId>()?;
     m.add_class::<MessageBuffer>()?;
     m.add_class::<Interfacing>()?;
 
