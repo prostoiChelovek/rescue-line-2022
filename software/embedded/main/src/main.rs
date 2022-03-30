@@ -20,7 +20,7 @@ mod app {
 
     use stepper::{Stepper, StepperDireciton};
 
-    use interfacing::Interfacing;
+    use interfacing::{Interfacing, commands::Command, CommandId};
 
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
@@ -148,12 +148,24 @@ mod app {
         });
     }
 
-    #[task(binds = USART2, shared = [serial_rx, serial_tx)]
-    fn uart_rx(cx: uart_rx::Context) {
-        cx.shared.serial_rx.lock(|rx| {
-            match rx.read() {
-                Ok(_byte) => {
+    #[task(shared = [interfacing])]
+    fn handle_command(mut cx: handle_command::Context, id: CommandId) {
+        cx.shared.interfacing.lock(|interfacing| {
+            let cmd = interfacing.get_command(id);
+            rprintln!("cmd: {:?}", cmd);
+            interfacing.finish_executing(id).unwrap();
+        });
+    }
 
+    #[task(binds = USART2, shared = [serial_rx, interfacing])]
+    fn uart_rx(cx: uart_rx::Context) {
+        (cx.shared.serial_rx, cx.shared.interfacing).lock(|rx, interfacing| {
+            match rx.read() {
+                Ok(byte) => {
+                    interfacing.handle_received_byte(byte).unwrap();
+                    if let Some(cmd) = interfacing.get_command_to_execute() {
+                        handle_command::spawn(cmd).unwrap();
+                    }
                 },
                 Err(_e) => {
                     // TODO
