@@ -12,7 +12,7 @@ mod app {
         prelude::*, pac, pac::{USART2, NVIC, Interrupt},
         timer::{monotonic::MonoTimer, Timer},
         gpio::{
-            gpioa::PA10, gpiob::{PB3, PB10, PB4},
+            gpioa::{PA10, PA9}, gpiob::{PB3, PB10, PB4},
             Output, PushPull
         },
         serial, serial::{config::Config, Event, Serial},
@@ -30,6 +30,7 @@ mod app {
     struct Shared {
         left_stepper: Stepper<PA10<Output<PushPull>>, PB4<Output<PushPull>>>,
         right_stepper: Stepper<PB3<Output<PushPull>>, PB10<Output<PushPull>>>,
+        enable_pin: PA9<Output<PushPull>>,
         interfacing: Interfacing,
         serial_tx: serial::Tx<USART2>,
         serial_rx: serial::Rx<USART2>,
@@ -51,7 +52,7 @@ mod app {
         let (gpioa, gpiob) = (ctx.device.GPIOA.split(), ctx.device.GPIOB.split());
 
         let mut en = gpioa.pa9.into_push_pull_output();
-        en.set_low();
+        en.set_high();
         
         let left_stepper = {
             let (step, dir) = (gpioa.pa10.into_push_pull_output(), gpiob.pb4.into_push_pull_output());
@@ -97,6 +98,7 @@ mod app {
             Shared {
                 left_stepper,
                 right_stepper,
+                enable_pin: en,
                 interfacing: Interfacing::new(),
                 serial_tx, serial_rx,
             },
@@ -160,11 +162,12 @@ mod app {
         send_message::spawn_after(10_u32.millis()).unwrap();
     }
 
-    #[task(shared = [left_stepper, right_stepper, interfacing])]
+    #[task(shared = [left_stepper, right_stepper, enable_pin, interfacing])]
     fn stop_cmd(mut cx: stop_cmd::Context, id: CommandId) {
-        (cx.shared.left_stepper, cx.shared.right_stepper).lock(|left, right| {
+        (cx.shared.left_stepper, cx.shared.right_stepper, cx.shared.enable_pin).lock(|left, right, en| {
             left.stop();
             right.stop();
+            en.set_high();
         });
 
         cx.shared.interfacing.lock(|interfacing| {
@@ -172,7 +175,7 @@ mod app {
         });
     }
 
-    #[task(shared = [left_stepper, right_stepper, interfacing])]
+    #[task(shared = [left_stepper, right_stepper, enable_pin, interfacing])]
     fn set_speed_cmd(mut cx: set_speed_cmd::Context, id: CommandId, params: SetSpeedParams) {
         fn set_speed<S: OutputPin, D: OutputPin>(stepper: &mut Stepper<S, D>, speed: &i32) {
             let stepper_speed = (speed.abs() as u32).Hz();
@@ -187,8 +190,9 @@ mod app {
             }
         }
 
-        (cx.shared.left_stepper, cx.shared.right_stepper).lock(|left_stepper, right_stepper| {
+        (cx.shared.left_stepper, cx.shared.right_stepper, cx.shared.enable_pin).lock(|left_stepper, right_stepper, en| {
             let SetSpeedParams{left, right} = params; 
+            en.set_low();
             set_speed(left_stepper, &left);
             set_speed(right_stepper, &right);
         });
@@ -217,7 +221,12 @@ mod app {
         (cx.shared.serial_rx, cx.shared.interfacing).lock(|rx, interfacing| {
             match rx.read() {
                 Ok(byte) => {
-                    interfacing.handle_received_byte(byte).unwrap();
+                    let res = interfacing.handle_received_byte(byte);
+                    if let Err(e) = res {
+                        rprintln!("Error while receiving a message: {:?}", e);
+                        return;
+                    }
+
                     if let Some(cmd) = interfacing.get_command_to_execute() {
                         handle_command::spawn(cmd).unwrap();
                     }
