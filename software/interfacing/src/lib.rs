@@ -120,7 +120,7 @@ impl Interfacing {
     pub fn finish_executing(&mut self, id: CommandId) -> Result<(), MessageSerializeErorr> {
         self.send_message(&Message::Done(id.into()))?;
 
-        self.commands[&id].status = CommandExecutionStatus::Finished;
+        self.commands.remove(&id);
 
         Ok(())
     }
