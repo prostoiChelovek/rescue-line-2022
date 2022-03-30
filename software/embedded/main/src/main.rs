@@ -9,7 +9,7 @@ mod app {
     use rtt_target::{rtt_init_print, rprintln};
 
     use stm32f4xx_hal::{
-        prelude::*, pac, pac::{USART2, NVIC, Interrupt},
+        prelude::*, pac, pac::USART6,
         timer::{monotonic::MonoTimer, Timer},
         gpio::{
             gpioa::{PA10, PA9}, gpiob::{PB3, PB10, PB4},
@@ -32,8 +32,8 @@ mod app {
         right_stepper: Stepper<PB3<Output<PushPull>>, PB10<Output<PushPull>>>,
         enable_pin: PA9<Output<PushPull>>,
         interfacing: Interfacing,
-        serial_tx: serial::Tx<USART2>,
-        serial_rx: serial::Rx<USART2>,
+        serial_tx: serial::Tx<USART6>,
+        serial_rx: serial::Rx<USART6>,
     }
 
     #[local]
@@ -72,23 +72,17 @@ mod app {
 
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 
-        let tx = gpioa.pa2.into_alternate();
-        let rx = gpioa.pa3.into_alternate();
+        let tx = gpioa.pa11.into_alternate();
+        let rx = gpioa.pa12.into_alternate();
         let mut serial = Serial::new(
-            ctx.device.USART2,
+            ctx.device.USART6,
             (tx, rx),
             Config::default().baudrate(interfacing::BAUD_RATE.bps()),
             &clocks,
             )
             .unwrap();
 	    serial.listen(Event::Rxne);
-	
-	    // Enable interrupt
-	    NVIC::unpend(Interrupt::USART2);
-	    unsafe {
-	        NVIC::unmask(Interrupt::USART2);
-	    }
-	
+
 	    let (serial_tx, serial_rx) = serial.split();
 
         //change_speed::spawn().ok();
@@ -216,7 +210,7 @@ mod app {
         });
     }
 
-    #[task(binds = USART2, shared = [serial_rx, interfacing], priority = 10)]
+    #[task(binds = USART6, shared = [serial_rx, interfacing], priority = 10)]
     fn uart_rx(cx: uart_rx::Context) {
         (cx.shared.serial_rx, cx.shared.interfacing).lock(|rx, interfacing| {
             match rx.read() {
