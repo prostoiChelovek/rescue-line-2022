@@ -52,14 +52,9 @@ impl Interfacing {
         let id = self.next_id;
         self.next_id += 1;
 
-        let msg = Message::Command(id, command.clone());
-
-        let mut encoded = msg.serialize()?;
-        Self::add_message_preamble(&mut encoded);
-        let encoded = encoded;
+        self.send_message(&Message::Command(id, command.clone()))?;
 
         self.commands.insert(id, CommandHandle::new(command)).unwrap();
-        self.send.enqueue(encoded).unwrap();
 
         Ok(CommandId::new(id))
     }
@@ -122,8 +117,12 @@ impl Interfacing {
         self.commands[&id].status = CommandExecutionStatus::Started;
     }
 
-    pub fn finish_executing(&mut self, id: CommandId) {
+    pub fn finish_executing(&mut self, id: CommandId) -> Result<(), MessageSerializeErorr> {
+        self.send_message(&Message::Done(id.into()))?;
+
         self.commands[&id].status = CommandExecutionStatus::Finished;
+
+        Ok(())
     }
 
     pub fn ack_finish(&mut self, id: CommandId) {
@@ -140,6 +139,15 @@ impl Interfacing {
         tmp.push(msg.len().try_into().unwrap()).unwrap();
         tmp.extend_from_slice(&msg[..]).unwrap();
         *msg = take(&mut tmp);
+    }
+
+    fn send_message(&mut self, msg: &Message) -> Result<(), MessageSerializeErorr> {
+        let mut encoded = msg.serialize()?;
+        Self::add_message_preamble(&mut encoded);
+        let encoded = encoded;
+        self.send.enqueue(encoded).unwrap();
+
+        Ok(())
     }
 }
 
@@ -223,8 +231,9 @@ mod tests {
         let cmd = i.get_command(id);
         assert_eq!(cmd, Command::Stop);
 
-        i.finish_executing(id);
+        i.finish_executing(id).unwrap();
         assert!(i.is_finished(id));
+        assert!(i.get_message_to_send().is_some());
     }
 
     #[test]
