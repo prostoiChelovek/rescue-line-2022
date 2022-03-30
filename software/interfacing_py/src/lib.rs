@@ -168,8 +168,9 @@ impl Interfacing {
         Ok(CommandId(result))
     }
 
-    pub fn update(&mut self) -> PyResult<Option<CommandId>> {
-        Ok(self.0.update().map(|r| r.map(|s| CommandId(s))).map_err(|e| UpdateErorr(e))?)
+    pub fn handle_received_byte(&mut self, byte: u8) -> PyResult<()> {
+        self.0.handle_received_byte(byte).map_err(|e| UpdateErorr(e))?;
+        Ok(())
     }
 
     // TODO: figure out how to do this properly
@@ -191,17 +192,13 @@ impl Interfacing {
         self.0.get_message_to_send().map(|m| MessageBuffer(m))
     }
 
-    pub fn set_received_message(&mut self, message: MessageBuffer) {
-        self.0.set_received_message(message.0)
-    }
-
     pub fn ack_finish(&mut self, id: CommandId) {
         self.0.ack_finish(id.0)
     }
 
     #[classattr]
     #[allow(non_snake_case)]
-    pub fn BAUD_RATE() -> usize {
+    pub fn BAUD_RATE() -> u32 {
         interfacing::BAUD_RATE
     }
 

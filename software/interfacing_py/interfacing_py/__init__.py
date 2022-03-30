@@ -17,25 +17,17 @@ class InterfacingManager(Interfacing):
         asyncio.create_task(self._updater())
         asyncio.create_task(self._sender())
 
-    async def _read_message(self):
-        await self._serial.read_until_async(bytes(self.START_BYTE))
-        len = await self._serial.read_async(size = 1)
-        return await self._serial.read_async(size = int(len))
-
     async def _updater(self):
         while True:
             try:
-                message = await self._read_message()
-                self.set_received_message(MessageBuffer(message))
-
-                self.update()
+                byte = await self._serial.read_async(size = 1)
+                self.handle_received_byte(byte)
 
                 for handle, future in list(self._command_futures.items()):
                     if self.check_finished(handle):
                         future.set_result(None)
                         self.ack_finish(handle)
                         del self._command_futures[handle]
-
             except Exception:
                 self._logger.exception("Error while running update loop")
 
