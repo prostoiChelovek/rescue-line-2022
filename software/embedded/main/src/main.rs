@@ -90,6 +90,7 @@ mod app {
 	    let (serial_tx, serial_rx) = serial.split();
 
         //change_speed::spawn().ok();
+        send_message::spawn().unwrap();
 
         (
             Shared {
@@ -146,6 +147,16 @@ mod app {
                 right::spawn_after(next_delay).ok();
             }
         });
+    }
+
+    #[task(shared = [interfacing, serial_tx])]
+    fn send_message(cx: send_message::Context) {
+        (cx.shared.serial_tx, cx.shared.interfacing).lock(|tx, interfacing| {
+            if let Some(msg) = interfacing.get_message_to_send() {
+                tx.bwrite_all(&msg[..]).unwrap();
+            }
+        });
+        send_message::spawn_after(10_u32.millis()).unwrap();
     }
 
     #[task(shared = [interfacing])]
