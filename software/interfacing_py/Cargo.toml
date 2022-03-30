@@ -1,0 +1,18 @@
+[package]
+name = "interfacing_py"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+derive_more = "0.99.17"
+interfacing = { path = "../interfacing" }
+
+[dependencies.pyo3]
+version = "0.16.2"
+features = ["extension-module"]
+
