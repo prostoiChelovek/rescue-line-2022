@@ -36,7 +36,6 @@ class InterfacingManager:
             try:
                 to_send = self._interfacing.get_message_to_send()
                 if to_send is not None:
-                    print(list(to_send))
                     await self._serial.write_async(bytes(to_send))
                 await asyncio.sleep(0.1)
             except Exception:
