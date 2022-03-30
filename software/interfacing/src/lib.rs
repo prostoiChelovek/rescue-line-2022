@@ -64,30 +64,6 @@ impl Interfacing {
         Ok(CommandId::new(id))
     }
 
-    fn update(&mut self) -> Result<Option<CommandId>, UpdateErorr> {
-        let message = Message::deserialize(&self.receiving_buffer);
-        self.receiving_buffer.clear();
-        // need to clear the buffer despite any errors
-        let message = message?;
-
-        match message {
-            Message::Command(id, cmd) => {
-                self.commands.insert(id, CommandHandle::new(cmd)).unwrap();
-                Ok(Some(CommandId::new(id)))
-            },
-            Message::Ack(id) => {
-                let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
-                handle.start_executing();
-                Ok(None)
-            },
-            Message::Done(id) => {
-                let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
-                handle.finish_executing();
-                Ok(None)
-            }
-        }
-    }
-
     pub fn handle_received_byte(&mut self, byte: u8) -> Result<(), UpdateErorr> {
         match self.receiving_status {
             ReceiveStatus::NotStarted => {
@@ -102,13 +78,28 @@ impl Interfacing {
             ReceiveStatus::Receiving(size) => {
                 self.receiving_buffer.push(byte).unwrap();
                 if self.receiving_buffer.len() == size {
-                    let cmd = self.update();
-                    self.receiving_status = ReceiveStatus::NotStarted;
-                    let cmd = cmd?;
+                    let message = Message::deserialize(&self.receiving_buffer);
 
-                    if let Some(cmd) = cmd {
-                        self.waiting_execute.enqueue(cmd).unwrap();
-                    }
+                    self.receiving_buffer.clear();
+                    self.receiving_status = ReceiveStatus::NotStarted;
+
+                    // need to reset the state despite any errors
+                    let message = message?;
+
+                    match message {
+                        Message::Command(id, cmd) => {
+                            self.commands.insert(id, CommandHandle::new(cmd)).unwrap();
+                            self.waiting_execute.enqueue(CommandId::new(id)).unwrap();
+                        },
+                        Message::Ack(id) => {
+                            let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
+                            handle.start_executing();
+                        },
+                        Message::Done(id) => {
+                            let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
+                            handle.finish_executing();
+                        }
+                    };
                 }
             }
         };
