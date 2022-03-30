@@ -21,25 +21,30 @@ use heapless::{spsc::Queue, FnvIndexMap};
 pub const BAUD_RATE: u32 = 115200;
 pub const START_BYTE: u8 = 0b1010101;
 
-const INTERFACING_QUEUE_SIZE: usize = 2;
+const INTERFACING_QUEUE_SIZE: usize = 5;
 const REGISTRY_CAPACITY: usize = 4;
 
 pub struct Interfacing {
-    received: Queue<MessageBuffer, INTERFACING_QUEUE_SIZE>,
     send: Queue<MessageBuffer, INTERFACING_QUEUE_SIZE>,
 
     next_id: u32,
 
-    commands: FnvIndexMap<IdType, CommandHandle, REGISTRY_CAPACITY>
+    waiting_execute: Queue<CommandId, REGISTRY_CAPACITY>,
+    commands: FnvIndexMap<IdType, CommandHandle, REGISTRY_CAPACITY>,
+
+    receiving_status: ReceiveStatus,
+    receiving_buffer: MessageBuffer
 }
 
 impl Interfacing {
     pub fn new() -> Self {
         Self { 
-            received: Queue::new(),
             send: Queue::new(),
             next_id: 0,
-            commands: FnvIndexMap::new()
+            waiting_execute: Queue::new(),
+            commands: FnvIndexMap::new(),
+            receiving_status: ReceiveStatus::NotStarted,
+            receiving_buffer: MessageBuffer::new()
         }
     }
 
@@ -59,45 +64,72 @@ impl Interfacing {
         Ok(CommandId::new(id))
     }
 
-    pub fn update(&mut self) -> Result<Option<CommandId>, UpdateErorr> {
-        if let Some(received) = self.received.dequeue() {
-            let message = Message::deserialize(&received)?;
-            match message {
-                Message::Command(id, cmd) => {
-                    self.commands.insert(id, CommandHandle::new(cmd)).unwrap();
-                    Ok(Some(CommandId::new(id)))
-                },
-                Message::Ack(id) => {
-                    let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
-                    handle.start_executing();
-                    Ok(None)
-                },
-                Message::Done(id) => {
-                    let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
-                    handle.finish_executing();
-                    Ok(None)
-                }
+    fn update(&mut self) -> Result<Option<CommandId>, UpdateErorr> {
+        let message = Message::deserialize(&self.receiving_buffer);
+        self.receiving_buffer.clear();
+        // need to clear the buffer despite any errors
+        let message = message?;
+
+        match message {
+            Message::Command(id, cmd) => {
+                self.commands.insert(id, CommandHandle::new(cmd)).unwrap();
+                Ok(Some(CommandId::new(id)))
+            },
+            Message::Ack(id) => {
+                let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
+                handle.start_executing();
+                Ok(None)
+            },
+            Message::Done(id) => {
+                let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
+                handle.finish_executing();
+                Ok(None)
             }
-        } else {
-            Ok(None)
         }
     }
 
+    pub fn handle_received_byte(&mut self, byte: u8) -> Result<(), UpdateErorr> {
+        match self.receiving_status {
+            ReceiveStatus::NotStarted => {
+                if byte == START_BYTE {
+                    self.receiving_status = ReceiveStatus::Started;
+                }
+            },
+            ReceiveStatus::Started => {
+                let size: usize = byte.into();
+                self.receiving_status = ReceiveStatus::Receiving(size);
+            },
+            ReceiveStatus::Receiving(size) => {
+                self.receiving_buffer.push(byte).unwrap();
+                if self.receiving_buffer.len() == size {
+                    let cmd = self.update();
+                    self.receiving_status = ReceiveStatus::NotStarted;
+                    let cmd = cmd?;
+
+                    if let Some(cmd) = cmd {
+                        self.waiting_execute.enqueue(cmd).unwrap();
+                    }
+                }
+            }
+        };
+        Ok(())
+    }
+
     pub fn get_handle(&mut self, id: CommandId) -> &mut CommandHandle {
-        &mut self.commands[&id]
+        // .into here is just to silence rust-analyzer
+        (&mut self.commands[&id]).into()
     }
 
     pub fn get_message_to_send(&mut self) -> Option<MessageBuffer> {
         self.send.dequeue()
     }
 
-    /// message should not contain preamble
-    pub fn set_received_message(&mut self, message: MessageBuffer) {
-        self.received.enqueue(message).unwrap();
-    }
-
     pub fn ack_finish(&mut self, id: CommandId) {
         self.commands.remove(&id);
+    }
+
+    pub fn get_command_to_execute(&mut self) -> Option<CommandId> {
+        self.waiting_execute.dequeue()
     }
 
     fn add_message_preamble(msg: &mut MessageBuffer) {
@@ -107,6 +139,13 @@ impl Interfacing {
         tmp.extend_from_slice(&msg[..]).unwrap();
         *msg = take(&mut tmp);
     }
+}
+
+#[derive(Debug)]
+enum ReceiveStatus {
+    NotStarted,
+    Started,
+    Receiving(usize),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -177,6 +216,14 @@ mod tests {
     use super::*;
     use std::vec::Vec;
 
+    fn consume_message(i: &mut Interfacing, msg: &Message) {
+        let mut msg = msg.serialize().unwrap();
+        Interfacing::add_message_preamble(&mut msg);
+        for byte in msg {
+            i.handle_received_byte(byte).unwrap();
+        }
+    }
+
     #[test]
     fn execute_handle_test() {
         let mut i = Interfacing::new();
@@ -205,8 +252,8 @@ mod tests {
         let id = i.execute(Command::Stop).unwrap();
 
         let msg = Message::Done(*id);
-        i.set_received_message(msg.serialize().unwrap());
-        assert!(i.update().unwrap().is_none());
+        consume_message(&mut i, &msg);
+        assert!(i.get_command_to_execute().is_none());
 
         let handle = i.get_handle(id);
         assert!(handle.is_finished());
@@ -225,8 +272,8 @@ mod tests {
             }
             for id in &ids {
                 let msg = Message::Done(**id);
-                i.set_received_message(msg.serialize().unwrap());
-                assert!(i.update().unwrap().is_none());
+                consume_message(&mut i, &msg);
+                assert!(i.get_command_to_execute().is_none());
             }
             for id in ids {
                 let handle = i.get_handle(id);
