@@ -24,7 +24,7 @@ class InterfacingManager(Interfacing):
                 self.handle_received_byte(byte)
 
                 for handle, future in list(self._command_futures.items()):
-                    if self.check_finished(handle):
+                    if self.is_finished(handle):
                         future.set_result(None)
                         self.ack_finish(handle)
                         del self._command_futures[handle]

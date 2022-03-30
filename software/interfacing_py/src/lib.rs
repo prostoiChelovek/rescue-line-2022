@@ -173,19 +173,8 @@ impl Interfacing {
         Ok(())
     }
 
-    // TODO: figure out how to do this properly
-    /*
-    pub fn get_handle(&mut self, id: CommandId) -> Py<CommandHandle> {
-        let handle = self.0.get_handle(id.0);
-        Python::with_gil(|py| -> PyResult<Py<CommandHandle>> {
-            let foo: Py<CommandHandle> = Py::new(py, CommandHandle(*handle))?;
-            Ok(foo)
-        }).unwrap()
-    }
-    */
-
-    pub fn check_finished(&mut self, id: CommandId) -> bool {
-        self.0.get_handle(id.0).is_finished()
+    pub fn is_finished(&self, id: CommandId) -> bool {
+        self.0.is_finished(id.0)
     }
 
     pub fn get_message_to_send(&mut self) -> Option<MessageBuffer> {

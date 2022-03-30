@@ -93,11 +93,11 @@ impl Interfacing {
                         },
                         Message::Ack(id) => {
                             let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
-                            handle.start_executing();
+                            handle.status = CommandExecutionStatus::Started;
                         },
                         Message::Done(id) => {
                             let handle = self.commands.get_mut(&id).ok_or(UpdateErorr::BadId(id))?;
-                            handle.finish_executing();
+                            handle.status = CommandExecutionStatus::Finished;
                         }
                     };
                 }
@@ -106,13 +106,24 @@ impl Interfacing {
         Ok(())
     }
 
-    pub fn get_handle(&mut self, id: CommandId) -> &mut CommandHandle {
-        // .into here is just to silence rust-analyzer
-        (&mut self.commands[&id]).into()
-    }
-
     pub fn get_message_to_send(&mut self) -> Option<MessageBuffer> {
         self.send.dequeue()
+    }
+
+    pub fn is_finished(&self, id: CommandId) -> bool {
+        self.commands[&id].status == CommandExecutionStatus::Finished
+    }
+
+    pub fn get_command(&self, id: CommandId) -> Command {
+        self.commands[&id].command
+    }
+
+    pub fn start_executing(&mut self, id: CommandId) {
+        self.commands[&id].status = CommandExecutionStatus::Started;
+    }
+
+    pub fn finish_executing(&mut self, id: CommandId) {
+        self.commands[&id].status = CommandExecutionStatus::Finished;
     }
 
     pub fn ack_finish(&mut self, id: CommandId) {
@@ -164,8 +175,8 @@ enum CommandExecutionStatus {
 
 #[derive(Debug)]
 pub struct CommandHandle {
-    status: CommandExecutionStatus,
-    command: Command
+    pub(crate) status: CommandExecutionStatus,
+    pub(crate) command: Command
 }
 
 impl CommandHandle {
@@ -174,19 +185,6 @@ impl CommandHandle {
             status: CommandExecutionStatus::NotStarted,
             command
         }
-    }
-
-    pub fn start_executing(&mut self) -> &Command {
-        self.status = CommandExecutionStatus::Started;
-        &self.command
-    }
-
-    pub fn finish_executing(&mut self) {
-        self.status = CommandExecutionStatus::Finished;
-    }
-
-    pub fn is_finished(&self) -> bool {
-        self.status == CommandExecutionStatus::Finished
     }
 }
 
@@ -219,14 +217,14 @@ mod tests {
     fn execute_handle_test() {
         let mut i = Interfacing::new();
         let id = i.execute(Command::Stop).unwrap();
-        let handle = i.get_handle(id);
-        assert!(!handle.is_finished());
+        assert!(!i.is_finished(id));
 
-        let cmd = handle.start_executing();
-        assert_eq!(*cmd, Command::Stop);
+        i.start_executing(id);
+        let cmd = i.get_command(id);
+        assert_eq!(cmd, Command::Stop);
 
-        handle.finish_executing();
-        assert!(handle.is_finished());
+        i.finish_executing(id);
+        assert!(i.is_finished(id));
     }
 
     #[test]
@@ -246,8 +244,7 @@ mod tests {
         consume_message(&mut i, &msg);
         assert!(i.get_command_to_execute().is_none());
 
-        let handle = i.get_handle(id);
-        assert!(handle.is_finished());
+        assert!(i.is_finished(id));
     }
 
     #[test]
@@ -267,8 +264,7 @@ mod tests {
                 assert!(i.get_command_to_execute().is_none());
             }
             for id in ids {
-                let handle = i.get_handle(id);
-                assert!(handle.is_finished());       
+                assert!(i.is_finished(id));       
                 i.ack_finish(id);
             }
         }
