@@ -20,8 +20,8 @@ class InterfacingManager:
     async def _updater(self):
         while True:
             try:
-                byte = await self._serial.read_async(size = 1)
-                self._interfacing.handle_received_byte(byte)
+                bytes = await self._serial.read_async(size = 1)
+                self._interfacing.handle_received_byte(bytes[0])
 
                 for handle, future in list(self._command_futures.items()):
                     if self._interfacing.is_finished(handle):
