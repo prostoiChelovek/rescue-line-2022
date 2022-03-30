@@ -20,6 +20,7 @@ use heapless::{spsc::Queue, FnvIndexMap};
 
 pub const BAUD_RATE: u32 = 115200;
 pub const START_BYTE: u8 = 0b1010101;
+pub const RETRY_TIMEOUT: u32 = 50; // ms
 
 const INTERFACING_QUEUE_SIZE: usize = 5;
 const REGISTRY_CAPACITY: usize = 4;
@@ -48,13 +49,15 @@ impl Interfacing {
         }
     }
 
-    pub fn execute(&mut self, command: Command) -> Result<CommandId, MessageSerializeErorr> {
+    // TODO: it is ugly that you need to pass time here,
+    //       but i dunno how to do this properly right now
+    pub fn execute(&mut self, command: Command, time: Option<u32>) -> Result<CommandId, MessageSerializeErorr> {
         let id = self.next_id;
         self.next_id += 1;
 
         self.send_message(&Message::Command(id, command.clone()))?;
 
-        self.commands.insert(id, CommandHandle::new(command)).unwrap();
+        self.commands.insert(id, CommandHandle::new(command, time)).unwrap();
 
         Ok(CommandId::new(id))
     }
@@ -83,7 +86,10 @@ impl Interfacing {
 
                     match message {
                         Message::Command(id, cmd) => {
-                            self.commands.insert(id, CommandHandle::new(cmd)).unwrap();
+                            // TODO: right now, commands are executed only on the embedded side
+                            //       and we do not need to keep track of the time when the command
+                            //       was started
+                            self.commands.insert(id, CommandHandle::new(cmd, None)).unwrap();
                             self.waiting_execute.enqueue(CommandId::new(id)).unwrap();
                         },
                         Message::Ack(id) => {
@@ -98,6 +104,27 @@ impl Interfacing {
                 }
             }
         };
+        Ok(())
+    }
+
+    pub fn retry_timed_out(&mut self, time: u32) -> Result<(), MessageSerializeErorr> {
+        // TODO: this sucks but i cannot call send_message right in the loop
+        //       because both iterator and the method mutably borrow self
+        let mut commands: heapless::Vec<Message, REGISTRY_CAPACITY> = heapless::Vec::new();
+
+        for (id, cmd) in self.commands.iter_mut() {
+            if let Some(enqueue_time) = cmd.enqueue_time {
+                if time.wrapping_sub(enqueue_time) > RETRY_TIMEOUT {
+                    commands.push(Message::Command(*id, cmd.command)).unwrap();
+                    cmd.enqueue_time = Some(time);
+                }
+            }
+        }
+
+        for cmd in commands {
+            self.send_message(&cmd)?;
+        }
+
         Ok(())
     }
 
@@ -184,14 +211,16 @@ enum CommandExecutionStatus {
 #[derive(Debug)]
 pub struct CommandHandle {
     pub(crate) status: CommandExecutionStatus,
-    pub(crate) command: Command
+    pub(crate) command: Command,
+    pub(crate) enqueue_time: Option<u32>
 }
 
 impl CommandHandle {
-    pub fn new(command: Command) -> Self {
+    pub fn new(command: Command, enqueue_time: Option<u32>) -> Self {
         Self {
             status: CommandExecutionStatus::NotStarted,
-            command
+            command,
+            enqueue_time
         }
     }
 }
@@ -224,7 +253,7 @@ mod tests {
     #[test]
     fn execute_handle_test() {
         let mut i = Interfacing::new();
-        let id = i.execute(Command::Stop).unwrap();
+        let id = i.execute(Command::Stop, None).unwrap();
         assert!(!i.is_finished(id));
 
         i.start_executing(id);
@@ -232,14 +261,13 @@ mod tests {
         assert_eq!(cmd, Command::Stop);
 
         i.finish_executing(id).unwrap();
-        assert!(i.is_finished(id));
         assert!(i.get_message_to_send().is_some());
     }
 
     #[test]
     fn execute_send_test() {
         let mut i = Interfacing::new();
-        i.execute(Command::Stop).unwrap();
+        i.execute(Command::Stop, None).unwrap();
         assert!(i.get_message_to_send().is_some());
         assert!(i.get_message_to_send().is_none());
     }
@@ -247,7 +275,7 @@ mod tests {
     #[test]
     fn done_test() {
         let mut i = Interfacing::new();
-        let id = i.execute(Command::Stop).unwrap();
+        let id = i.execute(Command::Stop, None).unwrap();
 
         let msg = Message::Done(*id);
         consume_message(&mut i, &msg);
@@ -263,7 +291,7 @@ mod tests {
             let mut ids: Vec<CommandId> = Vec::new();
 
             for _ in 0..REGISTRY_CAPACITY {
-                let id = i.execute(Command::Stop).unwrap();
+                let id = i.execute(Command::Stop, None).unwrap();
                 assert!(i.get_message_to_send().is_some());
                 ids.push(id);
             }

@@ -16,6 +16,7 @@ class InterfacingManager:
 
         asyncio.create_task(self._updater())
         asyncio.create_task(self._sender())
+        asyncio.create_task(self._retry_timed_out())
 
     async def _updater(self):
         while True:
@@ -36,10 +37,20 @@ class InterfacingManager:
             try:
                 to_send = self._interfacing.get_message_to_send()
                 if to_send is not None:
+                    print(list(to_send))
                     await self._serial.write_async(bytes(to_send))
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.01)
             except Exception:
                 self._logger.exception("Error while running send loop")
+
+    async def _retry_timed_out(self):
+        while True:
+            try:
+                self._interfacing.retry_timed_out()
+                await asyncio.sleep(0.01)
+            except Exception:
+                self._logger.exception("Error while retrying timed out commands")
+
 
     def execute(self, cmd: PyCommand) -> asyncio.Future:
         handle = self._interfacing.execute(cmd)

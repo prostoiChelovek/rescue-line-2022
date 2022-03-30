@@ -1,5 +1,6 @@
 #![feature(arbitrary_self_types)]
 
+use std::time::{SystemTime, UNIX_EPOCH};
 use pyo3::exceptions::PyException;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -163,9 +164,14 @@ impl Interfacing {
     }
 
     pub fn execute(&mut self, command: PyCommand) -> PyResult<CommandId> {
-        let result = self.0.execute(command.try_into()?)
+        let result = self.0.execute(command.try_into()?, Some(get_time()))
             .map_err(|e| MessageSerializeErorr(e))?;
         Ok(CommandId(result))
+    }
+
+    pub fn retry_timed_out(&mut self) -> Result<(), MessageSerializeErorr> {
+        self.0.retry_timed_out(get_time())
+            .map_err(|e| MessageSerializeErorr(e))
     }
 
     pub fn handle_received_byte(&mut self, byte: u8) -> PyResult<()> {
@@ -196,6 +202,14 @@ impl Interfacing {
     pub fn START_BYTE() -> u8 {
         interfacing::START_BYTE
     }
+}
+
+fn get_time() -> u32 {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    since_the_epoch.as_millis() as u32
 }
 
 #[pymodule]
