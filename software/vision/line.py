@@ -1,15 +1,16 @@
 import numpy as np
 from cv2 import cv2 as cv
-from cv2.cv2 import ximgproc
 
 import random as rng
 
+from numpy.lib.function_base import median
+
 rng.seed(42)
 
-TEST_IMAGE = "test-curve.png"
+TEST_IMAGE = "./test-images/0.jpg"
 LINE_COLOR_RANGE = (
         (0, 0, 0),
-        (100, 100, 100)
+        (50, 50, 65)
         )
 
 
@@ -87,29 +88,21 @@ def set_border(a, val):
 
 def main():
     img = cv.imread(TEST_IMAGE)
+    img = cv.resize(img, (img.shape[1] // 4, img.shape[0] // 4))
 
     mask = cv.inRange(img, *LINE_COLOR_RANGE)
     mask = clean_mask(mask)
+
+    white_points = np.array(np.where(mask == 255)).T
+    lowest_white = np.max(white_points[:, 0])
+
+    window = white_points[white_points[:, 0] > lowest_white - 1]
+    line_x = int(np.median(window, axis=0)[1])
+
+    img[:, line_x] = (255, 0, 0)
+
     cv.imshow("mask", mask)
-
-    thin = ximgproc.thinning(mask)
-    set_border(thin, 0)
-
-    contours, _ = find_contours(thin)
-
-    approx_contours = []
-    eps = 0.004
-    for contour in contours:
-        peri = cv.arcLength(contour, True)
-        approx = cv.approxPolyDP(contour, eps * peri, closed=False)
-        approx_contours.append(approx)
-
-    for approx in approx_contours:
-        cv.drawContours(img, approx, -1, (255,), 1)
-
-    cv.imshow("thin", thin)
     cv.imshow("img", img)
-
     while cv.waitKey(0) != 27:
         pass
 
