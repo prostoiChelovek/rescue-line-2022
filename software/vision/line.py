@@ -1,6 +1,6 @@
 import numpy as np
 from cv2 import cv2 as cv
-from cv2 import ximgproc
+from cv2.cv2 import ximgproc
 
 import random as rng
 
@@ -14,17 +14,18 @@ LINE_COLOR_RANGE = (
 
 
 def clean_mask(mask):
-    kernel_erote = np.ones((3, 3),np.uint8)
-    erosion = cv.erode(mask, kernel_erote, iterations = 1)
+    kernel_erote = np.ones((3, 3), np.uint8)
+    erosion = cv.erode(mask, kernel_erote, iterations=1)
 
-    kernel_dilate = np.ones((9, 9),np.uint8)
-    dilation = cv.dilate(erosion, kernel_dilate, iterations = 2)
+    kernel_dilate = np.ones((9, 9), np.uint8)
+    dilation = cv.dilate(erosion, kernel_dilate, iterations=2)
 
     return dilation
 
 
 def find_contours(img):
-    contours, hierarchy = cv.findContours(img, cv.RETR_CCOMP , cv.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv.findContours(img, cv.RETR_CCOMP,
+                                          cv.CHAIN_APPROX_SIMPLE)
     return contours, hierarchy
 
 
@@ -32,24 +33,27 @@ def draw_contours(img_size, contours, hierarchy, thickness=1):
     drawing = np.zeros((img_size[0], img_size[1], 3), dtype=np.uint8)
 
     for i in range(len(contours)):
-        color = (rng.randint(0,256), rng.randint(0,256), rng.randint(0,256))
-        cv.drawContours(drawing, contours, i, color, thickness, cv.LINE_8, hierarchy, 0)
+        color = (rng.randint(0, 256), rng.randint(0, 256), rng.randint(0, 256))
+        cv.drawContours(drawing, contours, i, color, thickness,
+                        cv.LINE_8, hierarchy, 0)
 
     return drawing
 
 
 def draw_contour(img_size, contours, hierarchy, i, thickness=1):
     drawing = np.zeros((img_size[0], img_size[1]), dtype=np.uint8)
-    cv.drawContours(drawing, contours, i, (255,), thickness, cv.LINE_8, hierarchy, 0)
+    cv.drawContours(drawing, contours, i, (255,),
+                    thickness, cv.LINE_8, hierarchy, 0)
     return drawing
 
 
 def segment_unconnected(img):
     contours, hierarchy = find_contours(img)
-    return [draw_contour(img.shape, contours, hierarchy, i, cv.FILLED) for i in range(len(contours))]
+    return [draw_contour(img.shape, contours, hierarchy, i, cv.FILLED)
+            for i in range(len(contours))]
 
 
-def sample_function(params, values_range, resolution = 1):
+def sample_function(params, values_range, resolution=1):
     start, stop = values_range
     xs = np.linspace(start, stop, (stop - start) // resolution)
     return xs, np.poly1d(params)(xs)
@@ -57,7 +61,8 @@ def sample_function(params, values_range, resolution = 1):
 
 def polyfit_find(img):
     white_points = np.where(img == 255)[::-1]
-    white_points = np.flip(white_points)  # равносильно повороту изображения на 90 градусов
+    # равносильно повороту изображения на 90 градусов
+    white_points = np.flip(white_points)
     values_range = np.min(white_points[0]), np.max(white_points[0])
 
     params = np.polyfit(*white_points, deg=6, full=True)
@@ -105,7 +110,8 @@ def main():
     cv.imshow("thin", thin)
     cv.imshow("img", img)
 
-    while cv.waitKey(0) != 27: pass
+    while cv.waitKey(0) != 27:
+        pass
 
 
 if __name__ == "__main__":
