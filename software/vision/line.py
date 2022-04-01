@@ -10,6 +10,16 @@ LINE_COLOR_RANGE = (
         )
 
 
+def find(mask) -> int:
+    white_points = np.array(np.where(mask == 255)).T
+    lowest_white = np.max(white_points[:, 0])
+
+    window = white_points[white_points[:, 0] > lowest_white - 1]
+    line_x = int(np.median(window, axis=0)[1])
+
+    return line_x
+
+
 def main():
     img = cv.imread(TEST_IMAGE)
     img = cv.resize(img, (img.shape[1] // 4, img.shape[0] // 4))
@@ -17,11 +27,7 @@ def main():
     mask = cv.inRange(img, *LINE_COLOR_RANGE)
     mask = clean_mask(mask)
 
-    white_points = np.array(np.where(mask == 255)).T
-    lowest_white = np.max(white_points[:, 0])
-
-    window = white_points[white_points[:, 0] > lowest_white - 1]
-    line_x = int(np.median(window, axis=0)[1])
+    line_x = find(mask)
 
     img[:, line_x] = (255, 0, 0)
 
