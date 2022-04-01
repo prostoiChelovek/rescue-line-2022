@@ -7,16 +7,18 @@ from .interfacing_py import Interfacing, Command, CommandId, SetSpeedParams, PyC
 
 
 class InterfacingManager:
-    def __init__(self, port: str) -> None:
+    def __init__(self, port: str, loop: asyncio.AbstractEventLoop) -> None:
+        self._loop = loop or asyncio.get_event_loop()
+
         self._interfacing = Interfacing()
 
         self._logger = logging.Logger(__name__)
         self._serial = aioserial.AioSerial(port, baudrate=self._interfacing.BAUD_RATE)
         self._command_futures: Dict[CommandId, asyncio.Future] = {}
 
-        asyncio.create_task(self._updater())
-        asyncio.create_task(self._sender())
-        asyncio.create_task(self._retry_timed_out())
+        self._loop.create_task(self._updater())
+        self._loop.create_task(self._sender())
+        self._loop.create_task(self._retry_timed_out())
 
     async def _updater(self):
         while True:
@@ -54,7 +56,7 @@ class InterfacingManager:
 
     def execute(self, cmd: PyCommand) -> asyncio.Future:
         handle = self._interfacing.execute(cmd)
-        future = asyncio.get_event_loop().create_future()
+        future = self._loop.create_future()
         self._command_futures[handle] = future
         return self._command_futures[handle]
 
