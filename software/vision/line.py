@@ -3,7 +3,7 @@ from cv2 import cv2 as cv
 
 import random as rng
 
-from numpy.lib.function_base import median
+from .common import clean_mask
 
 rng.seed(42)
 
@@ -12,16 +12,6 @@ LINE_COLOR_RANGE = (
         (0, 0, 0),
         (50, 50, 65)
         )
-
-
-def clean_mask(mask):
-    kernel_erote = np.ones((3, 3), np.uint8)
-    erosion = cv.erode(mask, kernel_erote, iterations=1)
-
-    kernel_dilate = np.ones((9, 9), np.uint8)
-    dilation = cv.dilate(erosion, kernel_dilate, iterations=2)
-
-    return dilation
 
 
 def find_contours(img):
