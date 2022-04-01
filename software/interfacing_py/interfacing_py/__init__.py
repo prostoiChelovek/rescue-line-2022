@@ -23,6 +23,8 @@ class InterfacingManager:
         ]
 
     def stop(self):
+        for fut in self._command_futures.values():
+            fut.cancel()
         for task in self._tasks:
             task.cancel()
 

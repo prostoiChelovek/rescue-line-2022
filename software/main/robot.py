@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import concurrent.futures
+import time
 
 from interfacing_py import InterfacingManager, PyCommand, Command, SetSpeedParams
 
@@ -21,7 +22,8 @@ class Robot:
         self._interfacing = interfacing_future.result(timeout=1)
 
     def stop(self):
-        self._interfacing.stop()
+        self._loop.call_soon_threadsafe(self._interfacing.stop)
+        time.sleep(0.1)
         self._loop.call_soon_threadsafe(self._loop.stop)
         self._loop_th.join()
 
