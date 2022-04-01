@@ -1,7 +1,7 @@
 import numpy as np
 from cv2 import cv2 as cv
 
-from common import clean_mask
+from .common import clean_mask
 
 TEST_IMAGE = "./images/0.jpg"
 LINE_COLOR_RANGE = (
