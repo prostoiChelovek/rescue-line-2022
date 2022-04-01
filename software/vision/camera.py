@@ -12,6 +12,8 @@ class BufferlessCapture(threading.Thread):
         self._cap = cv.VideoCapture(name)
         self._frame_buff = collections.deque(maxlen=1)
 
+        self.start()
+
     def run(self):
         while True:
             ret, frame = self._cap.read()
@@ -22,5 +24,4 @@ class BufferlessCapture(threading.Thread):
     def read(self):
         while len(self._frame_buff) == 0:
             pass
-
         return self._frame_buff.popleft()
