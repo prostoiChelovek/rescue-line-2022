@@ -3,7 +3,7 @@ from cv2 import cv2 as cv
 
 import random as rng
 
-from .common import clean_mask
+from common import clean_mask
 
 rng.seed(42)
 
