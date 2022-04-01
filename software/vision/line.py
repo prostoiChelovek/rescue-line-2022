@@ -9,12 +9,14 @@ LINE_COLOR_RANGE = (
         (50, 50, 65)
         )
 
+WINDOW_HEIGHT = 25
+
 
 def find(mask) -> int:
     white_points = np.array(np.where(mask == 255)).T
     lowest_white = np.max(white_points[:, 0])
 
-    window = white_points[white_points[:, 0] > lowest_white - 1]
+    window = white_points[white_points[:, 0] > lowest_white - WINDOW_HEIGHT]
     line_x = int(np.median(window, axis=0)[1])
 
     return line_x
