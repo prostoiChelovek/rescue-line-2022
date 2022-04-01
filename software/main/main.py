@@ -30,9 +30,9 @@ class RobotController:
             self._robot.set_speed(*new_speed)
 
             dt = time.time() - start
-            delay = LOOP_INTERVAL - dt
+            delay = int((LOOP_INTERVAL - dt) * 1000)
             if delay > 0:
-                time.sleep(delay)
+                cv.waitKey(delay)
 
     def shutdown(self):
         self._robot.shutdown()
