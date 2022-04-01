@@ -16,9 +16,15 @@ class InterfacingManager:
         self._serial = aioserial.AioSerial(port, baudrate=self._interfacing.BAUD_RATE)
         self._command_futures: Dict[CommandId, asyncio.Future] = {}
 
-        self._loop.create_task(self._updater())
-        self._loop.create_task(self._sender())
-        self._loop.create_task(self._retry_timed_out())
+        self._tasks = [
+            self._loop.create_task(self._updater()),
+            self._loop.create_task(self._sender()),
+            self._loop.create_task(self._retry_timed_out())
+        ]
+
+    def stop(self):
+        for task in self._tasks:
+            task.cancel()
 
     async def _updater(self):
         while True:
