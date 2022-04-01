@@ -7,7 +7,7 @@ from .common import clean_mask
 
 rng.seed(42)
 
-TEST_IMAGE = "./test-images/0.jpg"
+TEST_IMAGE = "./images/0.jpg"
 LINE_COLOR_RANGE = (
         (0, 0, 0),
         (50, 50, 65)
