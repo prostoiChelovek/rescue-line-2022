@@ -20,4 +20,7 @@ class BufferlessCapture(threading.Thread):
             self._frame_buff.append(frame)
 
     def read(self):
+        while len(self._frame_buff) == 0:
+            pass
+
         return self._frame_buff.popleft()
