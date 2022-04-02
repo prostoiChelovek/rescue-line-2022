@@ -12,7 +12,7 @@ mod app {
         prelude::*, pac, pac::USART6,
         timer::{monotonic::MonoTimer, Timer},
         gpio::{
-            gpioa::{PA10, PA9}, gpiob::{PB3, PB10, PB4},
+            gpioa::{PA10, PA9, PA8}, gpiob::{PB3, PB10, PB4, PB5},
             Output, PushPull
         },
         serial, serial::{config::Config, Event, Serial},
@@ -30,6 +30,7 @@ mod app {
     struct Shared {
         left_stepper: Stepper<PA10<Output<PushPull>>, PB4<Output<PushPull>>>,
         right_stepper: Stepper<PB3<Output<PushPull>>, PB10<Output<PushPull>>>,
+        platform_stepper: Stepper<PB5<Output<PushPull>>, PA8<Output<PushPull>>>,
         enable_pin: PA9<Output<PushPull>>,
         interfacing: Interfacing,
         serial_tx: serial::Tx<USART6>,
@@ -53,7 +54,7 @@ mod app {
 
         let mut en = gpioa.pa9.into_push_pull_output();
         en.set_high();
-        
+
         let left_stepper = {
             let (step, dir) = (gpioa.pa10.into_push_pull_output(), gpiob.pb4.into_push_pull_output());
             let mut stepper = Stepper::new(step, dir, || test::spawn().unwrap());
@@ -67,6 +68,13 @@ mod app {
             let mut stepper = Stepper::new(step, dir, || right::spawn().unwrap());
             stepper.set_direciton(StepperDireciton::CounterClockwise);
             //stepper.set_speed(100_u32.Hz());
+            stepper
+        };
+
+        let platform_stepper = {
+            let (step, dir) = (gpiob.pb5.into_push_pull_output(), gpioa.pa8.into_push_pull_output());
+            let mut stepper = Stepper::new(step, dir, || platform::spawn().unwrap());
+            stepper.set_direciton(StepperDireciton::CounterClockwise);
             stepper
         };
 
@@ -92,6 +100,7 @@ mod app {
             Shared {
                 left_stepper,
                 right_stepper,
+                platform_stepper,
                 enable_pin: en,
                 interfacing: Interfacing::new(),
                 serial_tx, serial_rx,
@@ -142,6 +151,16 @@ mod app {
             let next_delay = stepper.update();
             if let Some(next_delay) = next_delay {
                 right::spawn_after(next_delay).ok();
+            }
+        });
+    }
+
+    #[task(shared = [platform_stepper], priority = 15)]
+    fn platform(mut cx: platform::Context) {
+        cx.shared.platform_stepper.lock(|stepper| {
+            let next_delay = stepper.update();
+            if let Some(next_delay) = next_delay {
+                platform::spawn_after(next_delay).ok();
             }
         });
     }
