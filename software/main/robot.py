@@ -8,6 +8,7 @@ import logging
 from interfacing_py import InterfacingManager, PyCommand, Command, SetSpeedParams
 
 SERIAL_PORT =  "/dev/ttyS0"
+MAX_SPEED_DIFFERENCE = 1000
 
 
 class Robot:
@@ -42,9 +43,15 @@ class Robot:
         loop.run_forever()
 
     def set_speed(self, left: int, right: int, timeout: Optional[float] = None):
+        diff = abs(left - right)
+        if diff > MAX_SPEED_DIFFERENCE:
+            correction = diff // 2
+            left -= correction
+            right -= correction
+            logging.debug(f"Speed diff too big ({diff}); Corrected: ({left}, {right})")
+
         self._execute_command(PyCommand(Command.SetSpeed,
-                              SetSpeedParams(left,
-                                             right)),
+                              SetSpeedParams(left, right)),
                               timeout)
 
     def stop(self, timeout: Optional[float] = None):
