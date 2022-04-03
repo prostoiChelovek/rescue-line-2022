@@ -19,16 +19,18 @@ def debug(line_x, img, mask):
     cv.imshow("m", mask)
 
 
-def get_line_offset(img) -> int:
+def get_line_offset(img) -> Tuple[int, Tuple[int, int], int]:
     cropped = img[:(img.shape[1] // 2 - 5), :]
     mask = colors.find_black(cropped)
-    line_x = line.find(mask)
+
+    window_pos = line.get_window_pos(mask)
+    line_x = line.find(mask, window_pos)
 
     debug(line_x, cropped, mask)
 
     if line_x is None:
         return img.shape[1]  # TODO: handle it properly
-    return line_x - LINE_TARGET_X
+    return line_x - LINE_TARGET_X, window_pos, line_x
 
 
 def clamp_speed(val: float) -> float:
@@ -41,11 +43,12 @@ class LineFollower:
                         output_limits=(-FOLLOWING_SPEED * 2,
                                        FOLLOWING_SPEED * 2))
 
-    def update(self, img) -> Tuple[float, float]:
-        offset = get_line_offset(img)
+    def update(self, img) -> Tuple[Tuple[float, float], Tuple[int, int], int]:
+        offset, window_pos, line_x = get_line_offset(img)
         correction = self._pid(offset)
 
         new_speed = (clamp_speed(FOLLOWING_SPEED - correction),
                      clamp_speed(FOLLOWING_SPEED + correction))
         logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
-        return new_speed
+        # TODO: should not return all of that from here
+        return new_speed, window_pos, line_x
