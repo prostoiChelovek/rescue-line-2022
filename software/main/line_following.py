@@ -6,8 +6,8 @@ from simple_pid import PID
 
 from vision import colors, line
 
-FOLLOWING_SPEED = 1500  # sps
-MAX_SPEED = 2000
+FOLLOWING_SPEED = 500  # sps
+MAX_SPEED = 600
 LINE_TARGET_X = 228
 
 
@@ -37,7 +37,7 @@ def clamp_speed(val: float) -> float:
 
 class LineFollower:
     def __init__(self) -> None:
-        self._pid = PID(Kp=10.0, Ki=0.0, Kd=0.0, setpoint=0.0,
+        self._pid = PID(Kp=20.0, Ki=0.0, Kd=0.0, setpoint=0.0,
                         output_limits=(-FOLLOWING_SPEED, FOLLOWING_SPEED))
 
     def update(self, img) -> Tuple[float, float]:
