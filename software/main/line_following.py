@@ -37,18 +37,14 @@ def clamp_speed(val: float) -> float:
 
 class LineFollower:
     def __init__(self) -> None:
-        self._current_speed: Tuple[int, int] = None
         self._pid = PID(Kp=0.0001, Ki=0.0, Kd=0.0, setpoint=0.0,
                         output_limits=(-FOLLOWING_SPEED, FOLLOWING_SPEED))
 
     def update(self, img) -> Tuple[float, float]:
-        if self._current_speed == None:
-            return (FOLLOWING_SPEED, FOLLOWING_SPEED)
-        else:
-            offset = get_line_offset(img)
-            correction = self._pid(offset)
+        offset = get_line_offset(img)
+        correction = self._pid(offset)
 
-            new_speed = (clamp_speed(self._current_speed[0] - correction),
-                         clamp_speed(self._current_speed[1] + correction))
-            logging.debug(f"correction: {correction} ; new speed: {new_speed}")
-            return new_speed
+        new_speed = (clamp_speed(FOLLOWING_SPEED - correction),
+                     clamp_speed(FOLLOWING_SPEED + correction))
+        logging.debug(f"correction: {correction} ; new speed: {new_speed}")
+        return new_speed
