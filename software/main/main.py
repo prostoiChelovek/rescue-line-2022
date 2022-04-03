@@ -4,6 +4,7 @@ import logging, coloredlogs
 from cv2 import cv2 as cv
 
 from vision.camera import BufferlessCapture
+from vision.intersection import MarkersPosition
 
 from .robot import Robot
 from .line_following import LineFollower
@@ -35,19 +36,19 @@ class RobotController:
             frame = cv.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
 
             new_speed, black_win, line_x = follower.update(frame)
-            action = None
             if new_speed is not None and self._is_following_line:
-                action = intersections.update(frame, line_x, black_win)
+                intersections.update(frame, line_x, black_win)
                 self._robot.set_speed(*map(lambda x: -x, new_speed))
             else:
                 self._is_following_line = False
+                markers_pos = intersections.finish_scanning()
                 self._robot.set_speed(-800, -800)
-                if action == IntersectionAction.GO_FORWARD:
+                time.sleep(2)
+                if markers_pos == MarkersPosition.LEFT:
+                    self._robot.set_speed(800, -800)
                     time.sleep(2)
                     self._robot.stop()
                     break
-                elif action is None:
-                    pass  # TODO: handle somehow
 
             dt = time.time() - start
             delay = int((LOOP_INTERVAL - dt) * 1000)

@@ -23,7 +23,7 @@ class IntersectionsHandler:
         self._marks_pos_history = []
 
     def update(self, frame, line_x: int,
-              window_pos: Tuple[int, int]) -> Optional[Action]:
+              window_pos: Tuple[int, int]) bool:
         green = colors.find_green(frame)
         marks_position = intersection.find(green, line_x, window_pos)
         
@@ -31,17 +31,15 @@ class IntersectionsHandler:
                 and self._state == self.State.WAITING:
             self._state = self.State.STARTED
 
-        if self._state == self.State.STARTED:
-            scanning_finished = self._update_hisotry(marks_position)
-            if scanning_finished:
-                self._state = self.State.SCANNED
+        return self._update_hisotry(marks_position)
 
-                actual_pos = self._reduce_hisotry()
-                print(actual_pos)
+    def finish_scanning(self):
+        pos = self._reduce_hisotry()
 
-                self._marks_pos_history.clear()
+        self._state = self.State.SCANNED
+        self._marks_pos_history.clear()
 
-                return Action.GO_FORWARD
+        return pos
 
     def _update_hisotry(self, pos: MarkersPosition) -> bool:
         if pos == MarkersPosition.NONE:
