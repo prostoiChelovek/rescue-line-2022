@@ -14,7 +14,7 @@ LINE_COLOR_RANGE = (
         (50, 50, 65)
         )
 
-WINDOW_HEIGHT = 20
+WINDOW_HEIGHT = 3
 
 
 def segment_unconnected(img):
