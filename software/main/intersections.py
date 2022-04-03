@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 from enum import Enum
 
 from vision import colors, intersection
@@ -22,7 +22,8 @@ class IntersectionsHandler:
         self._state = self.State.WAITING
         self._marks_pos_history = []
 
-    def update(self, frame, line_x: int, window_pos: Tuple[int, int]):
+    def update(self, frame, line_x: int,
+              window_pos: Tuple[int, int]) -> Optional[Action]:
         green = colors.find_green(frame)
         marks_position = intersection.find(green, line_x, window_pos)
         
@@ -39,6 +40,8 @@ class IntersectionsHandler:
                 print(actual_pos)
 
                 self._marks_pos_history.clear()
+
+                return Action.GO_FORWARD
 
     def _update_hisotry(self, pos: MarkersPosition) -> bool:
         if pos == MarkersPosition.NONE:

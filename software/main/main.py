@@ -8,6 +8,7 @@ from vision.camera import BufferlessCapture
 from .robot import Robot
 from .line_following import LineFollower
 from .intersections import IntersectionsHandler
+from .intersections import Action as IntersectionAction
 
 field_styles = coloredlogs.DEFAULT_FIELD_STYLES
 field_styles["levelname"] = {"color": "white", "bold": True}
@@ -33,9 +34,18 @@ class RobotController:
             frame = cv.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
 
             new_speed, black_win, line_x = follower.update(frame)
-            self._robot.set_speed(*map(lambda x: -x, new_speed))
+            action = intersections.update(frame, line_x, black_win)
 
-            intersections.update(frame, line_x, black_win)
+            if new_speed is None:
+                if action == IntersectionAction.GO_FORWARD:
+                    self._robot.set_speed(-1000, -1000)
+                    time.sleep(2)
+                    self._robot.stop()
+                    break
+                elif action is None:
+                    pass  # TODO: handle somehow
+            else:
+                self._robot.set_speed(*map(lambda x: -x, new_speed))
 
             dt = time.time() - start
             delay = int((LOOP_INTERVAL - dt) * 1000)
