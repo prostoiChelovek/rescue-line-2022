@@ -41,10 +41,10 @@ class Robot:
         interfacing.set_result(InterfacingManager(SERIAL_PORT, loop))
         loop.run_forever()
 
-    def set_speed(self, left: float, right: float, timeout: Optional[float] = None):
+    def set_speed(self, left: int, right: int, timeout: Optional[float] = None):
         self._execute_command(PyCommand(Command.SetSpeed,
-                              SetSpeedParams(self._to_steps(left),
-                                             self._to_steps(right))),
+                              SetSpeedParams(left,
+                                             right)),
                               timeout)
 
     def stop(self, timeout: Optional[float] = None):

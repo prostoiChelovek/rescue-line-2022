@@ -5,9 +5,9 @@ from .robot import Robot
 
 from vision import colors, line
 
-FOLLOWING_SPEED = 0.8 # rps
-LINE_TARGET_X = 320
-MAX_SPEED = 0.2
+FOLLOWING_SPEED = 500  # sps
+MAX_SPEED = 1000
+LINE_TARGET_X = 400
 
 
 def get_line_offset(img) -> int:
@@ -18,13 +18,13 @@ def get_line_offset(img) -> int:
 
 
 def clamp_speed(val: float) -> float:
-    return min(MAX_SPEED, max(-MAX_SPEED, val))
+    return int(min(MAX_SPEED, max(-MAX_SPEED, val)))
 
 
 class LineFollower:
     def __init__(self) -> None:
         self._pid = PID(Kp=1.0, Ki=0.0, Kd=0.0, setpoint=0.0,
-        self._current_speed: Tuple[float, float] = None
+        self._current_speed: Tuple[int, int] = None
                         output_limits=(-FOLLOWING_SPEED, FOLLOWING_SPEED))
 
     def update(self, img) -> Tuple[float, float]:
