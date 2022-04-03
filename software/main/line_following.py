@@ -11,9 +11,10 @@ MAX_SPEED = 0.2
 
 
 def get_line_offset(img) -> int:
-        mask = colors.find_black(img)
-        line_x = line.find(mask)
-        return line_x - LINE_TARGET_X
+    cropped = img[:(img.shape[1] // 2 - 5), :]
+    mask = colors.find_black(cropped)
+    line_x = line.find(mask)
+    return line_x - LINE_TARGET_X
 
 
 def clamp_speed(val: float) -> float:
