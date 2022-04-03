@@ -4,11 +4,16 @@ import concurrent.futures
 import time
 from typing import Optional
 import logging
+import math
 
 from interfacing_py import InterfacingManager, PyCommand, Command, SetSpeedParams
 
 SERIAL_PORT =  "/dev/ttyS0"
 MAX_SPEED_DIFFERENCE = 1000
+
+
+def make_closer_to_zero(num: int, decrement: int) -> int:
+    return int(math.copysign(abs(num) - decrement, num))
 
 
 class Robot:
@@ -46,8 +51,8 @@ class Robot:
         diff = abs(left - right)
         if diff > MAX_SPEED_DIFFERENCE:
             correction = diff // 2
-            left -= correction
-            right -= correction
+            left = make_closer_to_zero(left, correction)
+            right = make_closer_to_zero(right, correction)
             logging.debug(f"Speed diff too big ({diff}); Corrected: ({left}, {right})")
 
         self._execute_command(PyCommand(Command.SetSpeed,
