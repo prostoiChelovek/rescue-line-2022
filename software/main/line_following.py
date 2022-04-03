@@ -6,9 +6,9 @@ from simple_pid import PID
 
 from vision import colors, line
 
-FOLLOWING_SPEED = 500  # sps
-MAX_SPEED = 1000
-LINE_TARGET_X = 400
+FOLLOWING_SPEED = 1500  # sps
+MAX_SPEED = 2000
+LINE_TARGET_X = 228
 
 
 def debug(line_x, img, mask):
