@@ -38,6 +38,8 @@ class IntersectionsHandler:
                 actual_pos = self._reduce_hisotry()
                 print(actual_pos)
 
+                self._marks_pos_history.clear()
+
     def _update_hisotry(self, pos: MarkersPosition) -> bool:
         if pos == MarkersPosition.NONE:
             return True
