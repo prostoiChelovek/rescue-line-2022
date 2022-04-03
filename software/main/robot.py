@@ -50,9 +50,15 @@ class Robot:
     def set_speed(self, left: int, right: int, timeout: Optional[float] = None):
         diff = abs(left - right)
         if diff > MAX_SPEED_DIFFERENCE:
-            correction = diff // 2
-            left = make_closer_to_zero(left, correction)
-            right = make_closer_to_zero(right, correction)
+            # TODO: do it like a cool guy (without branching)
+            if left == 0:
+                right = make_closer_to_zero(right, diff)
+            elif right == 0:
+                left = make_closer_to_zero(left, diff)
+            else:
+                correction = diff // 2
+                left = make_closer_to_zero(left, correction)
+                right = make_closer_to_zero(right, correction)
             logging.debug(f"Speed diff too big ({diff}); Corrected: ({left}, {right})")
 
         self._execute_command(PyCommand(Command.SetSpeed,
