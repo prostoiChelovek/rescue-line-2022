@@ -48,7 +48,7 @@ class IntersectionsHandler:
             return True
         else:
             previos_pos = self._marks_pos_history[-1:]
-            if pos != previos_pos:
+            if [pos] != previos_pos:
                 self._marks_pos_history.append(pos)
             return False
 
