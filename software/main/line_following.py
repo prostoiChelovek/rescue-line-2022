@@ -46,5 +46,5 @@ class LineFollower:
 
         new_speed = (clamp_speed(FOLLOWING_SPEED - correction),
                      clamp_speed(FOLLOWING_SPEED + correction))
-        logging.debug(f"correction: {correction} ; new speed: {new_speed}")
+        logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
         return new_speed
