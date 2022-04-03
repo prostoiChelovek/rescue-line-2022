@@ -28,13 +28,14 @@ def get_best_region(regions):
 
 
 def find(mask) -> Optional[int]:
-    lowest_white_y = np.argwhere(mask)[-1][0]
+    white = np.argwhere(mask)
+    if white.size == 0:
+        return None
+    lowest_white_y = white[-1][0]
     window = mask[lowest_white_y - WINDOW_HEIGHT:lowest_white_y]
 
     regions = segment_unconnected(window)
     region = get_best_region(regions)
-    if region is None:
-        return None
 
     line_x = int(region.centroid[1])
     return line_x
