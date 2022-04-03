@@ -1,5 +1,5 @@
 import math
-from typing import Optional
+from typing import Optional, Tuple
 import logging
 
 import numpy as np
@@ -14,7 +14,7 @@ LINE_COLOR_RANGE = (
         (50, 50, 65)
         )
 
-WINDOW_HEIGHT = 3
+WINDOW_HEIGHT = 20
 
 
 def segment_unconnected(img):
@@ -35,12 +35,20 @@ def validate_region(image_shape, region):
     return not (is_too_high and is_too_big)
 
 
-def find(mask) -> Optional[int]:
-    white = np.argwhere(mask)
+def get_window_pos(img) -> Optional[Tuple[int, int]]:
+    white = np.argwhere(img)
     if white.size == 0:
         return None
     lowest_white_y = white[-1][0]
-    window = mask[lowest_white_y - WINDOW_HEIGHT:lowest_white_y]
+    return lowest_white_y - WINDOW_HEIGHT, lowest_white_y
+
+
+def find(mask,
+         window_pos: Optional[Tuple[int, int]] = None) -> Optional[int]:
+    window_pos = window_pos or get_window_pos(mask)
+    if window_pos is None:
+        return None
+    window = mask[window_pos[0]:window_pos[1]]
 
     regions = segment_unconnected(window)
     region = get_best_region(regions)
