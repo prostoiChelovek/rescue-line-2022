@@ -23,6 +23,7 @@ class RobotController:
     def __init__(self) -> None:
         self._robot = Robot()
         self._cap = BufferlessCapture(0)
+        self._is_following_line = True
 
     def loop(self):
         follower = LineFollower()
@@ -35,12 +36,13 @@ class RobotController:
 
             new_speed, black_win, line_x = follower.update(frame)
             action = None
-            if new_speed is not None:
+            if new_speed is not None and self._is_following_line:
                 action = intersections.update(frame, line_x, black_win)
                 self._robot.set_speed(*map(lambda x: -x, new_speed))
             else:
+                self._is_following_line = False
+                self._robot.set_speed(-800, -800)
                 if action == IntersectionAction.GO_FORWARD:
-                    self._robot.set_speed(-1000, -1000)
                     time.sleep(2)
                     self._robot.stop()
                     break
