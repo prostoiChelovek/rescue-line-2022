@@ -2,6 +2,7 @@ from typing import Tuple
 import logging
 
 from cv2 import cv2 as cv
+import numpy as np 
 from simple_pid import PID
 
 from vision import colors, line
@@ -9,6 +10,7 @@ from vision import colors, line
 FOLLOWING_SPEED = 500  # sps
 MAX_SPEED = 600
 LINE_TARGET_X = 228
+INTERSECTION_FILL_FRAC = 0.7
 
 
 def debug(line_x, img, mask):
@@ -43,6 +45,14 @@ class LineFollower:
             offset = line_x - LINE_TARGET_X
 
         correction = self._pid(offset)
+
+        if window_pos is not None:
+            window = mask[window_pos[0]:window_pos[1]]
+            window_area = window.shape[0] * window.shape[1]
+            filled_frac = np.count_nonzero(window) / window_area
+            if filled_frac >= INTERSECTION_FILL_FRAC:
+                # TODO: ugly; should return some kinda state class
+                return None, window_pos, line_x
 
         new_speed = (clamp_speed(FOLLOWING_SPEED - correction),
                      clamp_speed(FOLLOWING_SPEED + correction))
