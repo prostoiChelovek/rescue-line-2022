@@ -9,7 +9,7 @@ LINE_COLOR_RANGE = (
         (50, 50, 65)
         )
 
-WINDOW_HEIGHT = 25
+WINDOW_HEIGHT = 3
 
 
 def find(mask) -> int:
