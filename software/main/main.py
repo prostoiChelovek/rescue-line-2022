@@ -11,7 +11,8 @@ from .line_following import LineFollower
 field_styles = coloredlogs.DEFAULT_FIELD_STYLES
 field_styles["levelname"] = {"color": "white", "bold": True}
 coloredlogs.install(fmt="%(asctime)s - %(threadName)s - %(levelname)s - %(module)s - %(message)s",
-                    field_styles=field_styles)
+                    field_styles=field_styles,
+                    level=logging.DEBUG)
 
 LOOP_INTERVAL = 1 / 10
 
