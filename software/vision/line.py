@@ -1,5 +1,6 @@
 import math
 from typing import Optional
+import logging
 
 import numpy as np
 from cv2 import cv2 as cv
@@ -29,9 +30,9 @@ def get_best_region(regions):
 
 def validate_region(image_shape, region):
     max_area = image_shape[0] * image_shape[1]
-    is_in_upper_third = region.centroid[0] < (image_shape[1] // 3) * 2
+    is_too_high = region.centroid[0] < (image_shape[1] // 3) * 2
     is_too_big = region.area > max_area // 2
-    return not (is_in_upper_third and is_too_big)
+    return not (is_too_high and is_too_big)
 
 
 def find(mask) -> Optional[int]:
@@ -45,6 +46,7 @@ def find(mask) -> Optional[int]:
     region = get_best_region(regions)
 
     if not validate_region(mask.shape, region):
+        logging.debug("Ignoring and invalid region")
         return None
 
     line_x = int(region.centroid[1])
