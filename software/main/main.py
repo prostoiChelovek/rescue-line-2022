@@ -27,7 +27,7 @@ class RobotController:
             frame = self._cap.read()
             frame = cv.resize(frame, (frame.shape[1] // 2, frame.shape[0] // 2))
             new_speed = follower.update(frame)
-            self._robot.set_speed(*new_speed)
+            self._robot.set_speed(*map(lambda x: -x, new_speed))
 
             dt = time.time() - start
             delay = int((LOOP_INTERVAL - dt) * 1000)
