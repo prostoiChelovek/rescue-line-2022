@@ -7,6 +7,7 @@ from vision.camera import BufferlessCapture
 
 from .robot import Robot
 from .line_following import LineFollower
+from .intersections import IntersectionsHandler
 
 field_styles = coloredlogs.DEFAULT_FIELD_STYLES
 field_styles["levelname"] = {"color": "white", "bold": True}
@@ -24,6 +25,7 @@ class RobotController:
 
     def loop(self):
         follower = LineFollower()
+        intersections = IntersectionsHandler()
         while True:
             start = time.time()
 
@@ -32,6 +34,8 @@ class RobotController:
 
             new_speed, black_win, line_x = follower.update(frame)
             self._robot.set_speed(*map(lambda x: -x, new_speed))
+
+            intersections.update(frame, line_x, black_win)
 
             dt = time.time() - start
             delay = int((LOOP_INTERVAL - dt) * 1000)
