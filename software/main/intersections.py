@@ -23,7 +23,7 @@ class IntersectionsHandler:
         self._marks_pos_history = []
 
     def update(self, frame, line_x: int,
-              window_pos: Tuple[int, int]) bool:
+              window_pos: Tuple[int, int]) -> bool:
         green = colors.find_green(frame)
         marks_position = intersection.find(green, line_x, window_pos)
         
