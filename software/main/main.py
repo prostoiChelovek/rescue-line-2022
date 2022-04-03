@@ -14,7 +14,7 @@ coloredlogs.install(fmt="%(asctime)s - %(threadName)s - %(levelname)s - %(module
                     field_styles=field_styles,
                     level=logging.DEBUG)
 
-LOOP_INTERVAL = 1 / 10
+LOOP_INTERVAL = 1 / 17
 
 
 class RobotController:
