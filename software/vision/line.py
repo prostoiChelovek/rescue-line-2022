@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 from cv2 import cv2 as cv
 
@@ -12,8 +13,11 @@ LINE_COLOR_RANGE = (
 WINDOW_HEIGHT = 3
 
 
-def find(mask) -> int:
+def find(mask) -> Optional[int]:
     white_points = np.array(np.where(mask == 255)).T
+    if white_points.size == 0:
+        return None
+
     lowest_white = np.max(white_points[:, 0])
 
     window = white_points[white_points[:, 0] > lowest_white - WINDOW_HEIGHT]

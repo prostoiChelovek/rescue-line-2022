@@ -14,6 +14,8 @@ def get_line_offset(img) -> int:
     cropped = img[:(img.shape[1] // 2 - 5), :]
     mask = colors.find_black(cropped)
     line_x = line.find(mask)
+    if line_x is None:
+        return img.shape[1]  # TODO: handle it properly
     return line_x - LINE_TARGET_X
 
 
