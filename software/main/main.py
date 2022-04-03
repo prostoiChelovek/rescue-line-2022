@@ -33,6 +33,7 @@ class RobotController:
 
             dt = time.time() - start
             delay = int((LOOP_INTERVAL - dt) * 1000)
+            logging.debug(f"loop delay: {delay}")
             if delay > 0:
                 cv.waitKey(delay)
 

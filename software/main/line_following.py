@@ -1,4 +1,5 @@
 from typing import Tuple
+import logging
 
 from cv2 import cv2 as cv
 from simple_pid import PID
@@ -42,10 +43,12 @@ class LineFollower:
 
     def update(self, img) -> Tuple[float, float]:
         if self._current_speed == None:
-            self._current_speed = (FOLLOWING_SPEED, FOLLOWING_SPEED)
+            return (FOLLOWING_SPEED, FOLLOWING_SPEED)
         else:
             offset = get_line_offset(img)
             correction = self._pid(offset)
-            return (clamp_speed(self._current_speed[0] - correction),
-                    clamp_speed(self._current_speed[1] + correction))
-        return self._current_speed
+
+            new_speed = (clamp_speed(self._current_speed[0] - correction),
+                         clamp_speed(self._current_speed[1] + correction))
+            logging.debug(f"correction: {correction} ; new speed: {new_speed}")
+            return new_speed
