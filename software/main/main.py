@@ -1,6 +1,8 @@
 import time
 import logging, coloredlogs
 
+from cv2 import cv2 as cv
+
 from vision.camera import BufferlessCapture
 
 from .robot import Robot
@@ -11,7 +13,7 @@ field_styles["levelname"] = {"color": "white", "bold": True}
 coloredlogs.install(fmt="%(asctime)s - %(threadName)s - %(levelname)s - %(module)s - %(message)s",
                     field_styles=field_styles)
 
-LOOP_INTERVAL = 1 / 25
+LOOP_INTERVAL = 1 / 10
 
 
 class RobotController:
