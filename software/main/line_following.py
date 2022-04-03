@@ -1,7 +1,7 @@
 from typing import Tuple
-from simple_pid import PID
 
-from .robot import Robot
+from cv2 import cv2 as cv
+from simple_pid import PID
 
 from vision import colors, line
 
@@ -10,10 +10,21 @@ MAX_SPEED = 1000
 LINE_TARGET_X = 400
 
 
+def debug(line_x, img, mask):
+    if line_x is not None:
+        img[:, line_x] = (255, 0, 0)
+
+    cv.imshow("i", img)
+    cv.imshow("m", mask)
+
+
 def get_line_offset(img) -> int:
     cropped = img[:(img.shape[1] // 2 - 5), :]
     mask = colors.find_black(cropped)
     line_x = line.find(mask)
+
+    debug(line_x, cropped, mask)
+
     if line_x is None:
         return img.shape[1]  # TODO: handle it properly
     return line_x - LINE_TARGET_X
