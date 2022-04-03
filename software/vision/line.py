@@ -27,6 +27,13 @@ def get_best_region(regions):
     return max(regions, key=region_score, default=None)
 
 
+def validate_region(image_shape, region):
+    max_area = image_shape[0] * image_shape[1]
+    is_in_upper_third = region.centroid[0] < (image_shape[1] // 3) * 2
+    is_too_big = region.area > max_area // 2
+    return not (is_in_upper_third and is_too_big)
+
+
 def find(mask) -> Optional[int]:
     white = np.argwhere(mask)
     if white.size == 0:
@@ -36,6 +43,9 @@ def find(mask) -> Optional[int]:
 
     regions = segment_unconnected(window)
     region = get_best_region(regions)
+
+    if not validate_region(mask.shape, region):
+        return None
 
     line_x = int(region.centroid[1])
     return line_x
