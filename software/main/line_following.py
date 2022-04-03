@@ -33,6 +33,6 @@ class LineFollower:
         else:
             offset = get_line_offset(img)
             correction = self._pid(offset)
-            self._current_speed = (clamp_speed(self._current_speed[0] - correction),
-                                   clamp_speed(self._current_speed[1] + correction))
+            return (clamp_speed(self._current_speed[0] - correction),
+                    clamp_speed(self._current_speed[1] + correction))
         return self._current_speed
