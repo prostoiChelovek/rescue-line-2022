@@ -11,9 +11,9 @@ mod app {
     use stm32f4xx_hal::{
         prelude::*, pac, pac::USART6,
         timer::{monotonic::MonoTimer, Timer},
-        gpio::{
+        gpio, gpio::{
             gpioa::{PA10, PA9, PA8}, gpiob::{PB3, PB10, PB4, PB5},
-            Output, PushPull
+            Output, PushPull, gpioc::PC4, Input, PullUp
         },
         serial, serial::{config::Config, Event, Serial},
     };
@@ -31,6 +31,8 @@ mod app {
         left_stepper: Stepper<PA10<Output<PushPull>>, PB4<Output<PushPull>>>,
         right_stepper: Stepper<PB3<Output<PushPull>>, PB10<Output<PushPull>>>,
         platform_stepper: Stepper<PB5<Output<PushPull>>, PA8<Output<PushPull>>>,
+        platform_limit: PC4<Input<PullUp>>,
+        platform_lift_cmd: Option<CommandId>,
         enable_pin: PA9<Output<PushPull>>,
         interfacing: Interfacing,
         serial_tx: serial::Tx<USART6>,
@@ -44,13 +46,14 @@ mod app {
     }
 
     #[init]
-    fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
+    fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         rtt_init_print!();
 
         let rcc = ctx.device.RCC.constrain();
         let clocks = rcc.cfgr.sysclk(84.mhz()).freeze();
+        let mut syscfg = ctx.device.SYSCFG.constrain();
 
-        let (gpioa, gpiob) = (ctx.device.GPIOA.split(), ctx.device.GPIOB.split());
+        let (gpioa, gpiob, gpioc) = (ctx.device.GPIOA.split(), ctx.device.GPIOB.split(), ctx.device.GPIOC.split());
 
         let mut en = gpioa.pa9.into_push_pull_output();
         en.set_high();
@@ -78,6 +81,11 @@ mod app {
             stepper
         };
 
+        let mut platform_limit = gpioc.pc4.into_pull_up_input();
+        platform_limit.make_interrupt_source(&mut syscfg);
+        platform_limit.enable_interrupt(&mut ctx.device.EXTI);
+        platform_limit.trigger_on_edge(&mut ctx.device.EXTI, gpio::Edge::Falling);
+
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 
         let tx = gpioa.pa11.into_alternate();
@@ -101,6 +109,8 @@ mod app {
                 left_stepper,
                 right_stepper,
                 platform_stepper,
+                platform_limit,
+                platform_lift_cmd: None,
                 enable_pin: en,
                 interfacing: Interfacing::new(),
                 serial_tx, serial_rx,
@@ -215,6 +225,37 @@ mod app {
         });
     }
 
+    #[task(shared = [platform_stepper, platform_limit, enable_pin, platform_lift_cmd])]
+    fn lift_platform_cmd(mut cx: lift_platform_cmd::Context, id: CommandId) {
+        (cx.shared.platform_stepper, cx.shared.enable_pin).lock(|stepper, en| {
+            en.set_low();
+            stepper.set_speed(500_u32.Hz());
+        });
+
+        cx.shared.platform_lift_cmd.lock(|platform_lift_cmd| {
+            if platform_lift_cmd.is_some() {
+                // TODO: handle
+            }
+            *platform_lift_cmd = Some(id);
+        });
+    }
+
+    #[task(binds = EXTI4, shared = [platform_stepper, platform_limit, interfacing, platform_lift_cmd])]
+    fn stop_platform(mut cx: stop_platform::Context) {
+        (cx.shared.platform_stepper, cx.shared.platform_limit).lock(|stepper, limit| {
+            limit.clear_interrupt_pending_bit();
+            stepper.stop();
+        });
+
+        cx.shared.platform_lift_cmd.lock(|platform_lift_cmd| {
+            if let Some(id) = platform_lift_cmd.take() {
+                cx.shared.interfacing.lock(|interfacing| {
+                    interfacing.finish_executing(id).unwrap();
+                });
+            }
+        });
+    }
+
     #[task(shared = [interfacing])]
     fn handle_command(mut cx: handle_command::Context, id: CommandId) {
         cx.shared.interfacing.lock(|interfacing| {
@@ -224,6 +265,7 @@ mod app {
             match cmd {
                 Command::Stop => stop_cmd::spawn(id).unwrap(),
                 Command::SetSpeed(params) => set_speed_cmd::spawn(id, params).unwrap(),
+                Command::LiftGripper => lift_platform_cmd::spawn(id).unwrap(),
                 _ => {}
             }
         });
