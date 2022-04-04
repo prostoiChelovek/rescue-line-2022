@@ -113,10 +113,12 @@ impl Interfacing {
         let mut commands: heapless::Vec<Message, REGISTRY_CAPACITY> = heapless::Vec::new();
 
         for (id, cmd) in self.commands.iter_mut() {
-            if let Some(enqueue_time) = cmd.enqueue_time {
-                if time.wrapping_sub(enqueue_time) > RETRY_TIMEOUT {
-                    commands.push(Message::Command(*id, cmd.command)).unwrap();
-                    cmd.enqueue_time = Some(time);
+            if cmd.status == CommandExecutionStatus::NotStarted{
+                if let Some(enqueue_time) = cmd.enqueue_time {
+                    if time.wrapping_sub(enqueue_time) > RETRY_TIMEOUT {
+                        commands.push(Message::Command(*id, cmd.command)).unwrap();
+                        cmd.enqueue_time = Some(time);
+                    }
                 }
             }
         }
