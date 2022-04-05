@@ -37,7 +37,7 @@ def debug(line_x, img, mask):
     cv.imshow("m", mask)
 
 
-def clamp_speed(val: float) -> float:
+def clamp_speed(val):
     return int(min(MAX_SPEED, max(-MAX_SPEED, val)))
 
 
@@ -83,8 +83,10 @@ class RobotController:
                 offset = line_x - LINE_TARGET_X
                 correction = self._pid(offset) or 0
 
-                new_speed = (clamp_speed(FOLLOWING_SPEED - correction),
-                             clamp_speed(FOLLOWING_SPEED + correction))
+                new_speed = (-clamp_speed(FOLLOWING_SPEED - correction),
+                             -clamp_speed(FOLLOWING_SPEED + correction))
+                self._robot.set_speed(*new_speed)
+
                 logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
 
             dt = time.time() - start
