@@ -28,6 +28,9 @@ MAX_SPEED = 600
 LINE_TARGET_X = 228
 INTERSECTION_FILL_FRAC = 0.7
 
+INTERSECTION_FORWARD_TIME = 2
+TURN_TIME = 4
+
 
 def debug(line_x, img, mask):
     if line_x is not None:
@@ -74,8 +77,25 @@ class RobotController:
             window = black[window_pos[0]:window_pos[1]]
             window_area = window.shape[0] * window.shape[1]
             filled_frac = np.count_nonzero(window) / window_area
-
             is_on_intersection = filled_frac >= INTERSECTION_FILL_FRAC
+
+            if is_on_intersection:
+                # TODO
+                marker = max(self._markers_history) \
+                        or intersection.MarkersPosition.NONE
+
+                self._intersection_forward()
+
+                if marker == intersection.MarkersPosition.NONE:
+                    pass
+                elif marker == intersection.MarkersPosition.LEFT:
+                    self._turn_left()
+                elif marker == intersection.MarkersPosition.RIGHT:
+                    self._turn_right()
+                elif marker == intersection.MarkersPosition.BOTH:
+                    self._turn_around()
+
+                self._markers_history.clear()
 
             if line_x is None:
                 continue
@@ -99,6 +119,22 @@ class RobotController:
             logging.debug(f"loop delay: {delay}")
             if delay > 0:
                 cv.waitKey(delay)
+
+    def _intersection_forward(self):
+        self._robot.set_speed(FOLLOWING_SPEED, FOLLOWING_SPEED)
+        time.sleep(INTERSECTION_FORWARD_TIME)
+
+    def _turn_left(self):
+        self._robot.set_speed(-FOLLOWING_SPEED, FOLLOWING_SPEED)
+        time.sleep(TURN_TIME)
+
+    def _turn_right(self):
+        self._robot.set_speed(FOLLOWING_SPEED, -FOLLOWING_SPEED)
+        time.sleep(TURN_TIME)   
+
+    def _turn_around(self):
+        self._robot.set_speed(-FOLLOWING_SPEED, FOLLOWING_SPEED)
+        time.sleep(TURN_TIME * 2)
 
     def shutdown(self):
         self._robot.shutdown()
