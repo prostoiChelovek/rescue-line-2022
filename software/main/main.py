@@ -1,3 +1,4 @@
+from enum import Enum
 import time
 import logging
 import coloredlogs
@@ -44,6 +45,13 @@ def clamp_speed(val):
     return int(min(MAX_SPEED, max(-MAX_SPEED, val)))
 
 
+class IntersectionType(Enum):
+    LEFT_TURN = 0,
+    RIGHT_TURN = 1,
+    T_JUNCTION = 2
+    CROSS = 3,
+
+
 class RobotController:
     def __init__(self) -> None:
         self._robot = Robot()
@@ -53,6 +61,7 @@ class RobotController:
                         output_limits=(-FOLLOWING_SPEED * 2,
                                        FOLLOWING_SPEED * 2))
         self._markers_history = []
+        self._last_line_x = None
 
     def loop(self):
         while True:
@@ -75,9 +84,21 @@ class RobotController:
                 continue
 
             window = black[window_pos[0]:window_pos[1]]
-            window_area = window.shape[0] * window.shape[1]
-            filled_frac = np.count_nonzero(window) / window_area
-            is_on_intersection = filled_frac >= INTERSECTION_FILL_FRAC
+            separator = line_x or self._last_line_x or window.shape[1] // 2
+            parts = (window[:, separator:], window[:, :separator])
+            def is_filled(part):
+                area = part.shape[0] * part.shape[1]
+                filled = np.count_nonzero(part) / area
+                return filled >= INTERSECTION_FILL_FRAC
+            filled = list(map(is_filled, parts))
+            intersection_type = {
+                    [True, False]: IntersectionType.LEFT_TURN,
+                    [False, True]: IntersectionType.RIGHT_TURN,
+                    # TODO: maybe a cross; dunno if i have to detecti it
+                    [True, True]: IntersectionType.T_JUNCTION
+                    }.get(filled, default=None)
+
+            is_on_intersection = intersection_type is not None
 
             if is_on_intersection:
                 # TODO
@@ -85,6 +106,13 @@ class RobotController:
                         or intersection.MarkersPosition.NONE
 
                 self._intersection_forward()
+
+                if marker == intersection.MarkersPosition.NONE:
+                    marker = {
+                            IntersectionType.LEFT_TURN: intersection.MarkersPosition.LEFT,
+                            IntersectionType.RIGHT_TURN: intersection.MarkersPosition.RIGHT,
+                            }.get(intersection_type,
+                                  default=intersection.MarkersPosition.NONE)
 
                 if marker == intersection.MarkersPosition.NONE:
                     pass
@@ -99,6 +127,8 @@ class RobotController:
 
             if line_x is None:
                 continue
+
+            self._last_line_x = line_x
 
             marks_position = intersection.find(green, line_x, window_pos)
             if marks_position == intersection.MarkersPosition.NONE:
