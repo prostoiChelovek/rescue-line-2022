@@ -10,6 +10,11 @@ GREEN_COLOR_RANGE = (
         (45, 70, 0),
         (65, 90, 20)
         )
+SILVER_COLOR_RANGE = (
+        (0, 0, 0),
+        (0, 0, 0)
+        )
+
 
 
 def find_black(img):
@@ -18,6 +23,10 @@ def find_black(img):
 
 def find_green(img):
     return find_color(img, GREEN_COLOR_RANGE)
+
+
+def find_silver(img):
+    return find_color(img, SILVER_COLOR_RANGE)
 
 
 def find_color(img, range):

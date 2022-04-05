@@ -52,6 +52,12 @@ class IntersectionType(Enum):
     CROSS = 3,
 
 
+class State(Enum):
+    IDLE = 0,
+    FOLLOWING_LINE = 1,
+    COLLECTING = 2
+
+
 class RobotController:
     def __init__(self) -> None:
         self._robot = Robot()
@@ -62,6 +68,7 @@ class RobotController:
                                        FOLLOWING_SPEED * 2))
         self._markers_history = []
         self._last_line_x = None
+        self._state = State.FOLLOWING_LINE
 
     def loop(self):
         while True:
@@ -73,7 +80,17 @@ class RobotController:
 
             cropped = frame[:(frame.shape[1] // 2 - 5), :]
 
-            self._line_loop(cropped)
+            if self._state == State.FOLLOWING_LINE:
+                window = cropped[(cropped.shape[0] - line.WINDOW_HEIGHT):]
+                window_area = window.shape[0] * window.shape[1]
+                silver = colors.find_silver(window)
+                if np.count_nonzero(silver) / window_area >= INTERSECTION_FILL_FRAC:
+                    self._intersection_forward()
+                    self._state = State.COLLECTING
+
+                self._line_loop(cropped)
+            elif self._state == State.COLLECTING:
+                self._collecting_loop(frame)
 
             dt = time.time() - start
             delay = int((LOOP_INTERVAL - dt) * 1000)
@@ -153,6 +170,9 @@ class RobotController:
             self._robot.set_speed(*new_speed)
 
             logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
+
+    def _collecting_loop(self, frame):
+        pass
 
     def _intersection_forward(self):
         self._robot.set_speed(FOLLOWING_SPEED, FOLLOWING_SPEED)
