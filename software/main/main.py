@@ -72,83 +72,87 @@ class RobotController:
                               (frame.shape[1] // 2, frame.shape[0] // 2))
 
             cropped = frame[:(frame.shape[1] // 2 - 5), :]
-            black = colors.find_black(cropped)
-            green = colors.find_green(cropped)
 
-            window_pos = line.get_window_pos(black)
-            line_x = line.find(black, window_pos)
-
-            debug(line_x, cropped, black)
-
-            if window_pos is None:
-                continue
-
-            window = black[window_pos[0]:window_pos[1]]
-            separator = line_x or self._last_line_x or window.shape[1] // 2
-            parts = (window[:, separator:], window[:, :separator])
-            def is_filled(part):
-                area = part.shape[0] * part.shape[1]
-                filled = np.count_nonzero(part) / area
-                return filled >= INTERSECTION_FILL_FRAC
-            filled = list(map(is_filled, parts))
-            intersection_type = {
-                    [True, False]: IntersectionType.LEFT_TURN,
-                    [False, True]: IntersectionType.RIGHT_TURN,
-                    # TODO: maybe a cross; dunno if i have to detecti it
-                    [True, True]: IntersectionType.T_JUNCTION
-                    }.get(filled, default=None)
-
-            is_on_intersection = intersection_type is not None
-
-            if is_on_intersection:
-                # TODO
-                marker = max(self._markers_history) \
-                        or intersection.MarkersPosition.NONE
-
-                self._intersection_forward()
-
-                if marker == intersection.MarkersPosition.NONE:
-                    marker = {
-                            IntersectionType.LEFT_TURN: intersection.MarkersPosition.LEFT,
-                            IntersectionType.RIGHT_TURN: intersection.MarkersPosition.RIGHT,
-                            }.get(intersection_type,
-                                  default=intersection.MarkersPosition.NONE)
-
-                if marker == intersection.MarkersPosition.NONE:
-                    pass
-                elif marker == intersection.MarkersPosition.LEFT:
-                    self._turn_left()
-                elif marker == intersection.MarkersPosition.RIGHT:
-                    self._turn_right()
-                elif marker == intersection.MarkersPosition.BOTH:
-                    self._turn_around()
-
-                self._markers_history.clear()
-
-            if line_x is None:
-                continue
-
-            self._last_line_x = line_x
-
-            marks_position = intersection.find(green, line_x, window_pos)
-            if marks_position == intersection.MarkersPosition.NONE:
-                self._markers_history.append(marks_position)
-
-            if not is_on_intersection:
-                offset = line_x - LINE_TARGET_X
-                correction = self._pid(offset) or 0
-
-                new_speed = (-clamp_speed(FOLLOWING_SPEED - correction),
-                             -clamp_speed(FOLLOWING_SPEED + correction))
-                self._robot.set_speed(*new_speed)
-
-                logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
+            self._line_loop(cropped)
 
             dt = time.time() - start
             delay = int((LOOP_INTERVAL - dt) * 1000)
             logging.debug(f"loop delay: {delay}")
             if delay > 0:
                 cv.waitKey(delay)
+
+    def _line_loop(self, frame):
+        black = colors.find_black(frame)
+        green = colors.find_green(frame)
+
+        window_pos = line.get_window_pos(black)
+        line_x = line.find(black, window_pos)
+
+        debug(line_x, frame, black)
+
+        if window_pos is None:
+            return
+
+        window = black[window_pos[0]:window_pos[1]]
+        separator = line_x or self._last_line_x or window.shape[1] // 2
+        parts = (window[:, separator:], window[:, :separator])
+        def is_filled(part):
+            area = part.shape[0] * part.shape[1]
+            filled = np.count_nonzero(part) / area
+            return filled >= INTERSECTION_FILL_FRAC
+        filled = list(map(is_filled, parts))
+        intersection_type = {
+                [True, False]: IntersectionType.LEFT_TURN,
+                [False, True]: IntersectionType.RIGHT_TURN,
+                # TODO: maybe a cross; dunno if i have to detecti it
+                [True, True]: IntersectionType.T_JUNCTION
+                }.get(filled, default=None)
+
+        is_on_intersection = intersection_type is not None
+
+        if is_on_intersection:
+            # TODO
+            marker = max(self._markers_history) \
+                    or intersection.MarkersPosition.NONE
+
+            self._intersection_forward()
+
+            if marker == intersection.MarkersPosition.NONE:
+                marker = {
+                        IntersectionType.LEFT_TURN: intersection.MarkersPosition.LEFT,
+                        IntersectionType.RIGHT_TURN: intersection.MarkersPosition.RIGHT,
+                        }.get(intersection_type,
+                              default=intersection.MarkersPosition.NONE)
+
+            if marker == intersection.MarkersPosition.NONE:
+                pass
+            elif marker == intersection.MarkersPosition.LEFT:
+                self._turn_left()
+            elif marker == intersection.MarkersPosition.RIGHT:
+                self._turn_right()
+            elif marker == intersection.MarkersPosition.BOTH:
+                self._turn_around()
+
+            self._markers_history.clear()
+
+        if line_x is None:
+            return
+
+        self._last_line_x = line_x
+
+        marks_position = intersection.find(green, line_x, window_pos)
+        if marks_position == intersection.MarkersPosition.NONE:
+            self._markers_history.append(marks_position)
+
+        if not is_on_intersection:
+            offset = line_x - LINE_TARGET_X
+            correction = self._pid(offset) or 0
+
+            new_speed = (-clamp_speed(FOLLOWING_SPEED - correction),
+                         -clamp_speed(FOLLOWING_SPEED + correction))
+            self._robot.set_speed(*new_speed)
+
+            logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
 
     def _intersection_forward(self):
         self._robot.set_speed(FOLLOWING_SPEED, FOLLOWING_SPEED)
