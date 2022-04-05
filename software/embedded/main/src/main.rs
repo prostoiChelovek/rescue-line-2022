@@ -10,18 +10,22 @@ mod app {
 
     use stm32f4xx_hal::{
         prelude::*, pac, pac::USART6,
-        timer::{monotonic::MonoTimer, Timer},
+        timer, timer::{monotonic::MonoTimer, Timer},
         gpio, gpio::{
             gpioa::{PA10, PA9, PA8}, gpiob::{PB3, PB10, PB4, PB5},
             Output, PushPull, gpioc::PC4, Input, PullUp
         },
-        serial, serial::{config::Config, Event, Serial},
+        serial, serial::{config::Config, Event, Serial}, pwm::PwmChannel,
     };
     use fugit::{RateExtU32, HertzU32};
 
     use stepper::{Stepper, StepperDireciton};
 
     use interfacing::{Interfacing, commands::{Command, SetSpeedParams}, CommandId};
+
+    // TODO: kinda dirty but gonna go it for now
+    const GRIPPER_OPEN_DUTIES: (u16, u16) = (1, 2);
+    const GRIPPER_CLOSE_DUTIES: (u16, u16) = (2, 1);
 
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
@@ -34,6 +38,7 @@ mod app {
         platform_limit: PC4<Input<PullUp>>,
         platform_lift_cmd: Option<CommandId>,
         enable_pin: PA9<Output<PushPull>>,
+        servos: (PwmChannel<pac::TIM3, timer::C1>, PwmChannel<pac::TIM3, timer::C3>),
         interfacing: Interfacing,
         serial_tx: serial::Tx<USART6>,
         serial_rx: serial::Rx<USART6>,
@@ -86,6 +91,14 @@ mod app {
         platform_limit.enable_interrupt(&mut ctx.device.EXTI);
         platform_limit.trigger_on_edge(&mut ctx.device.EXTI, gpio::Edge::Falling);
 
+        let servos = {
+            let channels = (gpioc.pc6.into_alternate(), gpioc.pc8.into_alternate());
+            let (mut ch1, mut ch3) = Timer::new(ctx.device.TIM3, &clocks).pwm(channels, 40u32.hz());
+            ch1.enable();
+            ch3.enable();
+            (ch1, ch3)
+        };
+
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 
         let tx = gpioa.pa11.into_alternate();
@@ -112,6 +125,7 @@ mod app {
                 platform_limit,
                 platform_lift_cmd: None,
                 enable_pin: en,
+                servos,
                 interfacing: Interfacing::new(),
                 serial_tx, serial_rx,
             },
@@ -256,6 +270,34 @@ mod app {
         });
     }
 
+    #[task(shared = [servos, interfacing])]
+    fn open_gripper_cmd(mut cx: open_gripper_cmd::Context, id: CommandId) {
+        cx.shared.servos.lock(|servos| {
+            let (left, right) = servos;
+            let (left_duty, right_duty) = GRIPPER_OPEN_DUTIES;
+            left.set_duty(left_duty);
+            right.set_duty(right_duty);
+        });
+
+        cx.shared.interfacing.lock(|interfacing| {
+            interfacing.finish_executing(id).unwrap();
+        });
+    }
+
+    #[task(shared = [servos, interfacing])]
+    fn close_gripper_cmd(mut cx: close_gripper_cmd::Context, id: CommandId) {
+        cx.shared.servos.lock(|servos| {
+            // TODO: duplication
+            let (left, right) = servos;
+            let (left_duty, right_duty) = GRIPPER_CLOSE_DUTIES;
+            left.set_duty(left_duty);
+            right.set_duty(right_duty);
+        });
+
+        cx.shared.interfacing.lock(|interfacing| {
+            interfacing.finish_executing(id).unwrap();
+        });
+    }
     #[task(shared = [interfacing])]
     fn handle_command(mut cx: handle_command::Context, id: CommandId) {
         cx.shared.interfacing.lock(|interfacing| {
@@ -266,6 +308,8 @@ mod app {
                 Command::Stop => stop_cmd::spawn(id).unwrap(),
                 Command::SetSpeed(params) => set_speed_cmd::spawn(id, params).unwrap(),
                 Command::LiftGripper => lift_platform_cmd::spawn(id).unwrap(),
+                Command::OpenGripper => open_gripper_cmd::spawn(id).unwrap(),
+                Command::CloseGripper => close_gripper_cmd::spawn(id).unwrap(),
                 _ => {}
             }
         });
