@@ -9,7 +9,7 @@ from simple_pid import PID
 
 from vision import colors, line
 from vision.camera import BufferlessCapture
-from vision.intersection import MarkersPosition
+import vision.intersection as intersection 
 
 from .robot import Robot
 from .intersections import IntersectionsHandler
@@ -41,29 +41,17 @@ def clamp_speed(val):
     return int(min(MAX_SPEED, max(-MAX_SPEED, val)))
 
 
-def can_follow_line(mask, window_pos, line_x):
-    if window_pos is None and line_x is None:
-        return False
-
-    window = mask[window_pos[0]:window_pos[1]]
-    window_area = window.shape[0] * window.shape[1]
-    filled_frac = np.count_nonzero(window) / window_area
-    return filled_frac < INTERSECTION_FILL_FRAC
-
-
 class RobotController:
     def __init__(self) -> None:
         self._robot = Robot()
         self._cap = BufferlessCapture(0)
-        self._is_following_line = True
 
         self._pid = PID(Kp=20.0, Ki=0.0, Kd=0.0, setpoint=0.0,
                         output_limits=(-FOLLOWING_SPEED * 2,
                                        FOLLOWING_SPEED * 2))
+        self._markers_history = []
 
     def loop(self):
-        intersections = IntersectionsHandler()
-
         while True:
             start = time.time()
 
@@ -72,14 +60,31 @@ class RobotController:
                               (frame.shape[1] // 2, frame.shape[0] // 2))
 
             cropped = frame[:(frame.shape[1] // 2 - 5), :]
-            mask = colors.find_black(cropped)
+            black = colors.find_black(cropped)
+            green = colors.find_green(cropped)
 
-            window_pos = line.get_window_pos(mask)
-            line_x = line.find(mask, window_pos)
+            window_pos = line.get_window_pos(black)
+            line_x = line.find(black, window_pos)
 
-            debug(line_x, cropped, mask)
+            debug(line_x, cropped, black)
 
-            if can_follow_line(mask, window_pos, line_x):
+            if window_pos is None:
+                continue
+
+            window = black[window_pos[0]:window_pos[1]]
+            window_area = window.shape[0] * window.shape[1]
+            filled_frac = np.count_nonzero(window) / window_area
+
+            is_on_intersection = filled_frac >= INTERSECTION_FILL_FRAC
+
+            if line_x is None:
+                continue
+
+            marks_position = intersection.find(green, line_x, window_pos)
+            if marks_position == intersection.MarkersPosition.NONE:
+                self._markers_history.append(marks_position)
+
+            if not is_on_intersection:
                 offset = line_x - LINE_TARGET_X
                 correction = self._pid(offset) or 0
 
