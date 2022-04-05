@@ -41,6 +41,16 @@ def clamp_speed(val: float) -> float:
     return int(min(MAX_SPEED, max(-MAX_SPEED, val)))
 
 
+def can_follow_line(mask, window_pos, line_x):
+    if window_pos is None and line_x is None:
+        return False
+
+    window = mask[window_pos[0]:window_pos[1]]
+    window_area = window.shape[0] * window.shape[1]
+    filled_frac = np.count_nonzero(window) / window_area
+    return filled_frac < INTERSECTION_FILL_FRAC
+
+
 class RobotController:
     def __init__(self) -> None:
         self._robot = Robot()
@@ -69,23 +79,13 @@ class RobotController:
 
             debug(line_x, cropped, mask)
 
-            offset = frame.shape[1]  # TODO: handle it properly
-            if line_x is not None:
+            if can_follow_line(mask, window_pos, line_x):
                 offset = line_x - LINE_TARGET_X
+                correction = self._pid(offset) or 0
 
-            correction = self._pid(offset) or 0
-
-            if window_pos is not None:
-                window = mask[window_pos[0]:window_pos[1]]
-                window_area = window.shape[0] * window.shape[1]
-                filled_frac = np.count_nonzero(window) / window_area
-                if filled_frac >= INTERSECTION_FILL_FRAC:
-                    # TODO
-                    pass
-
-            new_speed = (clamp_speed(FOLLOWING_SPEED - correction),
-                         clamp_speed(FOLLOWING_SPEED + correction))
-            logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
+                new_speed = (clamp_speed(FOLLOWING_SPEED - correction),
+                             clamp_speed(FOLLOWING_SPEED + correction))
+                logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
 
             dt = time.time() - start
             delay = int((LOOP_INTERVAL - dt) * 1000)
