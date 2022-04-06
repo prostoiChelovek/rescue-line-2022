@@ -7,12 +7,12 @@ import logging
 
 from interfacing_py import InterfacingManager, PyCommand, Command, SetSpeedParams
 
-SERIAL_PORT =  "/dev/ttyACM0"
+from .settings import *
 
 
 class Robot:
     def __init__(self) -> None:
-        self.steps_per_rev = 16 * 200
+        self.steps_per_rev = STEPS_PER_REV
 
         self._loop = asyncio.new_event_loop()
         interfacing_future = concurrent.futures.Future()

@@ -13,25 +13,13 @@ from vision.camera import BufferlessCapture
 import vision.intersection as intersection 
 
 from .robot import Robot
+from .settings import *
 
 field_styles = coloredlogs.DEFAULT_FIELD_STYLES
 field_styles["levelname"] = {"color": "white", "bold": True}
 coloredlogs.install(fmt="%(asctime)s - %(threadName)s - %(levelname)s - %(module)s - %(message)s",
                     field_styles=field_styles,
                     level=logging.DEBUG)
-
-LOOP_INTERVAL = 1 / 10
-
-FOLLOWING_SPEED = 80  # sps
-MAX_SPEED = 120
-LINE_TARGET_X = 120
-INTERSECTION_FILL_FRAC = 0.7
-
-INTERSECTION_FORWARD_TIME = 8
-TURN_TIME = 10.5
-
-RECOVERY_OFFSET = 40
-
 
 def debug(line_x, img, mask):
     if line_x is not None:
