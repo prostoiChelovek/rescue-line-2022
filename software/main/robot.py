@@ -42,6 +42,9 @@ class Robot:
         loop.run_forever()
 
     def set_speed(self, left: int, right: int, timeout: Optional[float] = None):
+        if NO_MOVEMENT:
+            return
+
         self._execute_command(PyCommand(Command.SetSpeed,
                               SetSpeedParams(left,
                                              right)),

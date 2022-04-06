@@ -14,3 +14,4 @@ SERIAL_PORT =  "/dev/ttyACM0"
 
 STEPS_PER_REV = 16 * 200
 
+NO_MOVEMENT = False

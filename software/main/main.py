@@ -2,6 +2,7 @@ from enum import Enum
 import time
 import logging
 import coloredlogs
+import functools
 
 from cv2 import cv2 as cv
 import numpy as np
@@ -44,6 +45,15 @@ class State(Enum):
     IDLE = 0,
     FOLLOWING_LINE = 1,
     COLLECTING = 2
+
+
+def maybe_no_move(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if NO_MOVEMENT:
+            return
+        return fn(*args, **kwargs)
+    return wrapper
 
 
 class RobotController:
@@ -169,24 +179,29 @@ class RobotController:
     def _collecting_loop(self, frame):
         pass
 
+    @maybe_no_move
     def _intersection_backward(self):
         self._robot.set_speed(FOLLOWING_SPEED, FOLLOWING_SPEED)
         time.sleep(INTERSECTION_FORWARD_TIME)
 
+    @maybe_no_move
     def _intersection_forward(self):
         self._robot.set_speed(-FOLLOWING_SPEED, -FOLLOWING_SPEED)
         time.sleep(INTERSECTION_FORWARD_TIME)
 
+    @maybe_no_move
     def _turn_left(self):
         self._robot.set_speed(FOLLOWING_SPEED, -FOLLOWING_SPEED)
         time.sleep(TURN_TIME)
         self._robot.set_speed(0, 0)
 
+    @maybe_no_move
     def _turn_right(self):
         self._robot.set_speed(-FOLLOWING_SPEED, FOLLOWING_SPEED)
         time.sleep(TURN_TIME)   
         self._robot.set_speed(0, 0)
 
+    @maybe_no_move
     def _turn_around(self):
         self._robot.set_speed(FOLLOWING_SPEED, -FOLLOWING_SPEED)
         time.sleep(TURN_TIME * 2)
