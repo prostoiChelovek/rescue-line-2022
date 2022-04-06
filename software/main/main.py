@@ -128,9 +128,10 @@ class RobotController:
         is_on_intersection = intersection_type is not None
 
         if is_on_intersection:
-            # TODO
-            marker = max(self._markers_history) \
-                    or intersection.MarkersPosition.NONE
+            marker = intersection.MarkersPosition.NONE
+            if len(self._markers_history) > 0:
+                marker = max(set(self._markers_history),
+                             key=self._markers_history.count)
 
             self._intersection_forward()
 
