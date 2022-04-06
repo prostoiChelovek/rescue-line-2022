@@ -154,12 +154,12 @@ class RobotController:
                 pass
             elif marker == intersection.MarkersPosition.LEFT:
                 self._turn_left()
-                self._intersection_backward()
             elif marker == intersection.MarkersPosition.RIGHT:
                 self._turn_right()
-                self._intersection_backward()
             elif marker == intersection.MarkersPosition.BOTH:
                 self._turn_around()
+
+            if marker != intersection.MarkersPosition.NONE:
                 self._intersection_backward()
 
             self._markers_history.clear()
