@@ -32,6 +32,8 @@ INTERSECTION_FILL_FRAC = 0.7
 INTERSECTION_FORWARD_TIME = 2
 TURN_TIME = 4
 
+RECOVERY_OFFSET = 40
+
 
 def debug(line_x, img, mask):
     if line_x is not None:
@@ -69,6 +71,8 @@ class RobotController:
         self._markers_history = []
         self._last_line_x = None
         self._state = State.FOLLOWING_LINE
+
+        self._in_line_recovery = False
 
     def loop(self):
         while True:
@@ -109,6 +113,14 @@ class RobotController:
 
         if window_pos is None:
             return
+
+        if line_x is not None:
+            offset = line_x - LINE_TARGET_X
+            self._in_line_recovery = abs(offset) > RECOVERY_OFFSET
+
+            if self._in_line_recovery:
+                self._line_pid_loop(line_x, 0)
+                return
 
         window = black[window_pos[0]:window_pos[1]]
         separator = line_x or self._last_line_x or window.shape[1] // 2
@@ -162,14 +174,7 @@ class RobotController:
             self._markers_history.append(marks_position)
 
         if not is_on_intersection:
-            offset = line_x - LINE_TARGET_X
-            correction = self._pid(offset) or 0
-
-            new_speed = (-clamp_speed(FOLLOWING_SPEED - correction),
-                         -clamp_speed(FOLLOWING_SPEED + correction))
-            self._robot.set_speed(*new_speed)
-
-            logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
+            self._line_pid_loop(line_x, FOLLOWING_SPEED)
 
     def _collecting_loop(self, frame):
         pass
@@ -189,6 +194,16 @@ class RobotController:
     def _turn_around(self):
         self._robot.set_speed(-FOLLOWING_SPEED, FOLLOWING_SPEED)
         time.sleep(TURN_TIME * 2)
+
+    def _line_pid_loop(self, line_x, speed):
+        offset = line_x - LINE_TARGET_X
+        correction = self._pid(offset) or 0
+
+        new_speed = (-clamp_speed(speed - correction),
+                     -clamp_speed(speed + correction))
+        self._robot.set_speed(*new_speed)
+
+        logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
 
     def shutdown(self):
         self._robot.shutdown()
