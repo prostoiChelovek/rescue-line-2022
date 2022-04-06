@@ -117,13 +117,13 @@ class RobotController:
             area = part.shape[0] * part.shape[1]
             filled = np.count_nonzero(part) / area
             return filled >= INTERSECTION_FILL_FRAC
-        filled = list(map(is_filled, parts))
+        filled = tuple(map(is_filled, parts))
         intersection_type = {
-                [True, False]: IntersectionType.LEFT_TURN,
-                [False, True]: IntersectionType.RIGHT_TURN,
+                (True, False): IntersectionType.LEFT_TURN,
+                (False, True): IntersectionType.RIGHT_TURN,
                 # TODO: maybe a cross; dunno if i have to detecti it
-                [True, True]: IntersectionType.T_JUNCTION
-                }.get(filled, default=None)
+                (True, True): IntersectionType.T_JUNCTION
+                }.get(filled, None)
 
         is_on_intersection = intersection_type is not None
 
@@ -138,8 +138,7 @@ class RobotController:
                 marker = {
                         IntersectionType.LEFT_TURN: intersection.MarkersPosition.LEFT,
                         IntersectionType.RIGHT_TURN: intersection.MarkersPosition.RIGHT,
-                        }.get(intersection_type,
-                              default=intersection.MarkersPosition.NONE)
+                        }.get(intersection_type, intersection.MarkersPosition.NONE)
 
             if marker == intersection.MarkersPosition.NONE:
                 pass
