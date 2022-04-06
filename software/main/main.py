@@ -163,6 +163,7 @@ class RobotController:
                 self._intersection_backward()
 
             self._markers_history.clear()
+            return
 
         if line_x is None:
             return
