@@ -108,6 +108,7 @@ class RobotController:
         debug(line_x, frame, black)
 
         if window_pos is None:
+            self._turn_left()
             return
 
         if line_x is not None:
