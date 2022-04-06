@@ -80,17 +80,15 @@ class RobotController:
             frame = cv.resize(frame,
                               (frame.shape[1] // 2, frame.shape[0] // 2))
 
-            cropped = frame[:(frame.shape[1] // 2 - 5), :]
-
             if self._state == State.FOLLOWING_LINE:
-                window = cropped[(cropped.shape[0] - line.WINDOW_HEIGHT):]
+                window = frame[(frame.shape[0] - line.WINDOW_HEIGHT):]
                 window_area = window.shape[0] * window.shape[1]
                 silver = colors.find_silver(window)
                 if np.count_nonzero(silver) / window_area >= INTERSECTION_FILL_FRAC:
                     self._intersection_forward()
                     self._state = State.COLLECTING
 
-                self._line_loop(cropped)
+                self._line_loop(frame)
             elif self._state == State.COLLECTING:
                 self._collecting_loop(frame)
 
