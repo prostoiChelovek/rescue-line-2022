@@ -122,7 +122,7 @@ class RobotController:
 
         if line_x is not None:
             offset = line_x - LINE_TARGET_X
-            self._in_line_recovery = abs(offset) > RECOVERY_OFFSET
+            self._in_line_recovery = RECOVERY_TARGET_OFFSET < abs(offset) > RECOVERY_OFFSET
 
             if self._in_line_recovery:
                 self._line_pid_loop(line_x, 0)
