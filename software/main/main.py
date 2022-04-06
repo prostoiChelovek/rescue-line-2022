@@ -171,7 +171,7 @@ class RobotController:
         self._last_line_x = line_x
 
         marks_position = intersection.find(green, line_x, window_pos)
-        if marks_position == intersection.MarkersPosition.NONE:
+        if marks_position != intersection.MarkersPosition.NONE:
             self._markers_history.append(marks_position)
 
         if not is_on_intersection:
