@@ -51,6 +51,7 @@ def maybe_no_move(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         if NO_MOVEMENT:
+            logging.debug(f"Performing {fn.__name__}")
             return
         return fn(*args, **kwargs)
     return wrapper
