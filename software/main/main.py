@@ -161,6 +161,7 @@ class RobotController:
 
             if marker != intersection.MarkersPosition.NONE:
                 self._intersection_backward()
+                self._in_line_recovery = True
 
             self._markers_history.clear()
             return
