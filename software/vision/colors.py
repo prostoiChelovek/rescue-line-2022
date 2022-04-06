@@ -7,8 +7,8 @@ BLACK_COLOR_RANGE = (
         (50, 50, 65)
         )
 GREEN_COLOR_RANGE = (
-        (45, 70, 0),
-        (65, 90, 20)
+        (40, 90, 50),
+        (70, 110, 70)
         )
 SILVER_COLOR_RANGE = (
         (0, 0, 0),
