@@ -22,9 +22,9 @@ def segment_unconnected(img):
     return skimage.measure.regionprops(label_image=labels)
 
 
-def get_best_region(regions):
+def get_best_region(regions, img_width):
     def region_score(region):
-        return math.sqrt(region.area) * 0.25 + region.centroid[1]
+        return math.sqrt(region.area) * 0.25 + abs(region.centroid[1] - img_width / 2)
     return max(regions, key=region_score, default=None)
 
 
@@ -51,7 +51,7 @@ def find(mask,
     window = mask[window_pos[0]:window_pos[1]]
 
     regions = segment_unconnected(window)
-    region = get_best_region(regions)
+    region = get_best_region(regions, mask.shape[1])
 
     if not validate_region(mask.shape, region):
         logging.debug("Ignoring and invalid region")
