@@ -1,3 +1,7 @@
+import os
+
+NO_MOVEMENT = bool(int(os.getenv("NO_MOVE", default=0)))
+
 LOOP_INTERVAL = 1 / 10
 
 FOLLOWING_SPEED = 80  # sps
@@ -13,5 +17,3 @@ RECOVERY_OFFSET = 40
 SERIAL_PORT =  "/dev/ttyACM0"
 
 STEPS_PER_REV = 16 * 200
-
-NO_MOVEMENT = False
