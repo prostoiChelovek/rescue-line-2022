@@ -154,10 +154,13 @@ class RobotController:
                 pass
             elif marker == intersection.MarkersPosition.LEFT:
                 self._turn_left()
+                self._intersection_backward()
             elif marker == intersection.MarkersPosition.RIGHT:
                 self._turn_right()
+                self._intersection_backward()
             elif marker == intersection.MarkersPosition.BOTH:
                 self._turn_around()
+                self._intersection_backward()
 
             self._markers_history.clear()
 
@@ -176,10 +179,13 @@ class RobotController:
     def _collecting_loop(self, frame):
         pass
 
+    def _intersection_backward(self):
+        self._robot.set_speed(FOLLOWING_SPEED, FOLLOWING_SPEED)
+        time.sleep(INTERSECTION_FORWARD_TIME)
+
     def _intersection_forward(self):
         self._robot.set_speed(-FOLLOWING_SPEED, -FOLLOWING_SPEED)
         time.sleep(INTERSECTION_FORWARD_TIME)
-        self._robot.set_speed(0, 0)
 
     def _turn_left(self):
         self._robot.set_speed(FOLLOWING_SPEED, -FOLLOWING_SPEED)
