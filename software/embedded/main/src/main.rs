@@ -9,7 +9,7 @@ mod app {
     use rtt_target::{rtt_init_print, rprintln};
 
     use stm32f4xx_hal::{
-        prelude::*, pac, pac::USART6,
+        prelude::*, pac, pac::USART2,
         timer, timer::{monotonic::MonoTimer, Timer},
         gpio, gpio::{
             gpioa::{PA10, PA9, PA8}, gpiob::{PB3, PB10, PB4, PB5},
@@ -40,8 +40,8 @@ mod app {
         enable_pin: PA9<Output<PushPull>>,
         servos: (PwmChannel<pac::TIM3, timer::C1>, PwmChannel<pac::TIM3, timer::C3>),
         interfacing: Interfacing,
-        serial_tx: serial::Tx<USART6>,
-        serial_rx: serial::Rx<USART6>,
+        serial_tx: serial::Tx<USART2>,
+        serial_rx: serial::Rx<USART2>,
     }
 
     #[local]
@@ -101,10 +101,10 @@ mod app {
 
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 
-        let tx = gpioa.pa11.into_alternate();
-        let rx = gpioa.pa12.into_alternate();
+        let rx = gpioa.pa3.into_alternate();
+        let tx = gpioa.pa2.into_alternate();
         let mut serial = Serial::new(
-            ctx.device.USART6,
+            ctx.device.USART2,
             (tx, rx),
             Config::default().baudrate(interfacing::BAUD_RATE.bps()),
             &clocks,
@@ -315,7 +315,7 @@ mod app {
         });
     }
 
-    #[task(binds = USART6, shared = [serial_rx, interfacing], priority = 10)]
+    #[task(binds = USART2, shared = [serial_rx, interfacing], priority = 10)]
     fn uart_rx(cx: uart_rx::Context) {
         (cx.shared.serial_rx, cx.shared.interfacing).lock(|rx, interfacing| {
             match rx.read() {

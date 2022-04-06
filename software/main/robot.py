@@ -7,7 +7,7 @@ import logging
 
 from interfacing_py import InterfacingManager, PyCommand, Command, SetSpeedParams
 
-SERIAL_PORT =  "/dev/ttyS0"
+SERIAL_PORT =  "/dev/ttyACM0"
 
 
 class Robot:
