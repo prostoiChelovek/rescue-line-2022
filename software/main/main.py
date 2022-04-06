@@ -13,8 +13,6 @@ from vision.camera import BufferlessCapture
 import vision.intersection as intersection 
 
 from .robot import Robot
-from .intersections import IntersectionsHandler
-from .intersections import Action as IntersectionAction
 
 field_styles = coloredlogs.DEFAULT_FIELD_STYLES
 field_styles["levelname"] = {"color": "white", "bold": True}
