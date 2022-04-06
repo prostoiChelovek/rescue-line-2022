@@ -57,6 +57,11 @@ def maybe_no_move(fn):
     return wrapper
 
 
+def filled_frac(region):
+    area = region.shape[0] * region.shape[1]
+    return np.count_nonzero(region) / area
+
+
 class RobotController:
     def __init__(self) -> None:
         self._robot = Robot()
@@ -70,6 +75,11 @@ class RobotController:
         self._state = State.FOLLOWING_LINE
 
         self._in_line_recovery = False
+        # TODO: flags suck
+        self._intersection_maybe_seen = False
+        self._ready_for_intersection = False
+
+        self._intersection_type = None
 
     def loop(self):
         while True:
@@ -117,37 +127,54 @@ class RobotController:
             if self._in_line_recovery:
                 self._line_pid_loop(line_x, 0)
                 return
+            elif self._intersection_maybe_seen:
+                self._ready_for_intersection = True
+                self._intersection_maybe_seen = False
 
-        window = black[window_pos[0]:window_pos[1]]
+        black_window = black[window_pos[0]:window_pos[1]]
+        black_window_fill_frac = filled_frac(black_window)
+
+        intersection_win_pos = (window_pos[0] - line.WINDOW_HEIGHT * 2,
+                                window_pos[1] - line.WINDOW_HEIGHT * 2)
+        window = black[intersection_win_pos[0]:intersection_win_pos[1]]
         separator = line_x or self._last_line_x or window.shape[1] // 2
-        parts = (window[:, :separator], window[:, separator:])
-        def is_filled(part):
-            area = part.shape[0] * part.shape[1]
-            filled = np.count_nonzero(part) / area
-            return filled >= INTERSECTION_FILL_FRAC
-        filled = tuple(map(is_filled, parts))
-        intersection_type = {
-                (True, False): IntersectionType.LEFT_TURN,
-                (False, True): IntersectionType.RIGHT_TURN,
-                # TODO: maybe a cross; dunno if i have to detecti it
-                (True, True): IntersectionType.T_JUNCTION
-                }.get(filled, None)
+        parts = (window[:, :(separator + LINE_WIDTH / 2)], 
+                 window[:, (separator - LINE_WIDTH / 2):])
+        parts_fill_frac = tuple(map(filled_frac, parts))
 
-        is_on_intersection = intersection_type is not None
+        if self._ready_for_intersection:
+            self._ready_for_intersection = False
+            is_filled = tuple(map(lambda f: f >= INTERSECTION_FILL_FRAC, parts_fill_frac))
+            self._intersection_type = {
+                    (True, False): IntersectionType.LEFT_TURN,
+                    (False, True): IntersectionType.RIGHT_TURN,
+                    # TODO: maybe a cross; dunno if i have to detecti it
+                    (True, True): IntersectionType.T_JUNCTION
+                    }.get(is_filled, None)  # type: ignore
+        else:
+            self._intersection_type = None
+            parts_both_fill_frac = sum(parts_fill_frac)
+            if (parts_both_fill_frac / black_window_fill_frac) \
+                    > MAYBE_INTERSECTION_FILL_DIFF:
+                self._in_line_recovery = True
+                self._intersection_maybe_seen = True
+                return
 
-        if is_on_intersection:
+        if self._intersection_type is not None:
+            self._intersection_forward()
+
             marker = intersection.MarkersPosition.NONE
             if len(self._markers_history) > 0:
                 marker = max(set(self._markers_history),
                              key=self._markers_history.count)
 
-            self._intersection_forward()
-
             if marker == intersection.MarkersPosition.NONE:
                 marker = {
                         IntersectionType.LEFT_TURN: intersection.MarkersPosition.LEFT,
                         IntersectionType.RIGHT_TURN: intersection.MarkersPosition.RIGHT,
-                        }.get(intersection_type, intersection.MarkersPosition.NONE)
+                        }.get(self._intersection_type, intersection.MarkersPosition.NONE)
+
+            logging.debug(f"Marker: {marker}")
 
             if marker == intersection.MarkersPosition.NONE:
                 pass
@@ -163,6 +190,7 @@ class RobotController:
                 self._in_line_recovery = True
 
             self._markers_history.clear()
+            self._intersection_type = None
             return
 
         if line_x is None:
@@ -170,12 +198,11 @@ class RobotController:
 
         self._last_line_x = line_x
 
-        marks_position = intersection.find(green, line_x, window_pos)
+        marks_position = intersection.find(green, line_x, intersection_win_pos)
         if marks_position != intersection.MarkersPosition.NONE:
             self._markers_history.append(marks_position)
 
-        if not is_on_intersection:
-            self._line_pid_loop(line_x, FOLLOWING_SPEED)
+        self._line_pid_loop(line_x, FOLLOWING_SPEED)
 
     def _collecting_loop(self, frame):
         pass
