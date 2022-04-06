@@ -20,15 +20,15 @@ coloredlogs.install(fmt="%(asctime)s - %(threadName)s - %(levelname)s - %(module
                     field_styles=field_styles,
                     level=logging.DEBUG)
 
-LOOP_INTERVAL = 1 / 15
+LOOP_INTERVAL = 1 / 10
 
-FOLLOWING_SPEED = 500  # sps
-MAX_SPEED = 600
-LINE_TARGET_X = 228
+FOLLOWING_SPEED = 80  # sps
+MAX_SPEED = 120
+LINE_TARGET_X = 128
 INTERSECTION_FILL_FRAC = 0.7
 
-INTERSECTION_FORWARD_TIME = 2
-TURN_TIME = 4
+INTERSECTION_FORWARD_TIME = 8
+TURN_TIME = 11
 
 RECOVERY_OFFSET = 40
 
