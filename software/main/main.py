@@ -179,18 +179,22 @@ class RobotController:
     def _intersection_forward(self):
         self._robot.set_speed(-FOLLOWING_SPEED, -FOLLOWING_SPEED)
         time.sleep(INTERSECTION_FORWARD_TIME)
+        self._robot.set_speed(0, 0)
 
     def _turn_left(self):
         self._robot.set_speed(FOLLOWING_SPEED, -FOLLOWING_SPEED)
         time.sleep(TURN_TIME)
+        self._robot.set_speed(0, 0)
 
     def _turn_right(self):
         self._robot.set_speed(-FOLLOWING_SPEED, FOLLOWING_SPEED)
         time.sleep(TURN_TIME)   
+        self._robot.set_speed(0, 0)
 
     def _turn_around(self):
         self._robot.set_speed(FOLLOWING_SPEED, -FOLLOWING_SPEED)
         time.sleep(TURN_TIME * 2)
+        self._robot.set_speed(0, 0)
 
     def _line_pid_loop(self, line_x, speed):
         offset = line_x - LINE_TARGET_X
