@@ -121,7 +121,7 @@ class RobotController:
 
         window = black[window_pos[0]:window_pos[1]]
         separator = line_x or self._last_line_x or window.shape[1] // 2
-        parts = (window[:, separator:], window[:, :separator])
+        parts = (window[:, :separator], window[:, separator:])
         def is_filled(part):
             area = part.shape[0] * part.shape[1]
             filled = np.count_nonzero(part) / area
