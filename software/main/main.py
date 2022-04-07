@@ -81,6 +81,8 @@ class RobotController:
 
         self._intersection_type = None
 
+        self._prev_turn = None
+
     def loop(self):
         while True:
             start = time.time()
@@ -134,7 +136,14 @@ class RobotController:
                 self._ready_for_intersection = True
                 self._intersection_maybe_seen = False
 
-        black_window = black[window_pos[0]:window_pos[1]]
+        offset = (0, 0)
+        if self._prev_turn is not None:
+            if self._prev_turn == intersection.MarkersPosition.LEFT:
+                offset = (LINE_WIDTH, 0)
+            elif self._prev_turn == intersection.MarkersPosition.RIGHT:
+                offset = (0, LINE_WIDTH)
+            self._prev_turn = None
+        black_window = black[window_pos[0] + offset[0]:window_pos[1] - offset[1]]
         black_window_fill_frac = filled_frac(black_window)
 
         intersection_win_pos = (window_pos[0] - LINE_WIDTH,
@@ -176,6 +185,7 @@ class RobotController:
                         IntersectionType.LEFT_TURN: intersection.MarkersPosition.LEFT,
                         IntersectionType.RIGHT_TURN: intersection.MarkersPosition.RIGHT,
                         }.get(self._intersection_type, intersection.MarkersPosition.NONE)
+            self._prev_turn = marker
 
             logging.debug(f"Marker: {marker}")
 
