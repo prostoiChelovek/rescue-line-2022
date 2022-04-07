@@ -214,7 +214,7 @@ class RobotController:
     @maybe_no_move
     def _intersection_backward(self):
         self._robot.set_speed(FOLLOWING_SPEED, FOLLOWING_SPEED)
-        time.sleep(INTERSECTION_FORWARD_TIME)
+        time.sleep(INTERSECTION_BACKWARD_TIME)
 
     @maybe_no_move
     def _intersection_forward(self):
