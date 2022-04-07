@@ -138,8 +138,8 @@ class RobotController:
         black_window = black[window_pos[0]:window_pos[1]]
         black_window_fill_frac = filled_frac(black_window)
 
-        intersection_win_pos = (window_pos[0] - line.WINDOW_HEIGHT * 2,
-                                window_pos[1] - line.WINDOW_HEIGHT * 2)
+        intersection_win_pos = (window_pos[0] - LINE_WIDTH,
+                                window_pos[1] - LINE_WIDTH)
         window = black[intersection_win_pos[0]:intersection_win_pos[1]]
         separator = line_x or self._last_line_x or window.shape[1] // 2
         parts = (window[:, :(separator + LINE_WIDTH / 2)], 
