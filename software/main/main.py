@@ -59,6 +59,8 @@ def maybe_no_move(fn):
 
 def filled_frac(region):
     area = region.shape[0] * region.shape[1]
+    if area == 0:
+        return 0.0
     return np.count_nonzero(region) / area
 
 
