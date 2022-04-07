@@ -52,6 +52,8 @@ def find(mask,
 
     regions = segment_unconnected(window)
     region = get_best_region(regions, mask.shape[1])
+    if region is None:
+        return None
 
     if not validate_region(mask.shape, region):
         logging.debug("Ignoring and invalid region")
