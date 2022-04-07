@@ -142,8 +142,8 @@ class RobotController:
                                 window_pos[1] - LINE_WIDTH)
         window = black[intersection_win_pos[0]:intersection_win_pos[1]]
         separator = line_x or self._last_line_x or window.shape[1] // 2
-        parts = (window[:, :(separator + LINE_WIDTH / 2)], 
-                 window[:, (separator - LINE_WIDTH / 2):])
+        parts = (window[:, :(separator - LINE_WIDTH // 2)],
+                 window[:, (separator + LINE_WIDTH // 2):])
         parts_fill_frac = tuple(map(filled_frac, parts))
 
         if self._ready_for_intersection:
