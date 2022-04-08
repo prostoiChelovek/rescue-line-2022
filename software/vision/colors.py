@@ -14,6 +14,10 @@ SILVER_COLOR_RANGE = (
         (0, 0, 0),
         (0, 0, 0)
         )
+OBSTACLE_COLOR_RANGE = (
+        (0, 0, 0),
+        (0, 0, 0)
+        )
 
 
 
@@ -27,6 +31,10 @@ def find_green(img):
 
 def find_silver(img):
     return find_color(img, SILVER_COLOR_RANGE)
+
+
+def find_obstacle(img):
+    return find_color(img, OBSTACLE_COLOR_RANGE)
 
 
 def find_color(img, range):

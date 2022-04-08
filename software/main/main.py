@@ -112,6 +112,16 @@ class RobotController:
     def _line_loop(self, frame):
         black = colors.find_black(frame)
         green = colors.find_green(frame)
+        
+        obstacle_win = frame[(frame.shape[0] // 2):]
+        obstacle_mask = colors.find_obstacle(obstacle_win)
+        if filled_frac(obstacle_mask) > OBSTACLE_FRAC:
+            self._turn_left()
+            self._obstacle_forward()
+            self._turn_right()
+            self._intersection_forward()
+            self._turn_left()
+            return
 
         window_pos = line.get_window_pos(black)
         line_x = line.find(black, window_pos)
@@ -215,6 +225,11 @@ class RobotController:
     def _intersection_forward(self):
         self._robot.set_speed(-FOLLOWING_SPEED, -FOLLOWING_SPEED)
         time.sleep(INTERSECTION_FORWARD_TIME)
+
+    @maybe_no_move
+    def _obstacle_forward(self):
+        self._robot.set_speed(-FOLLOWING_SPEED, -FOLLOWING_SPEED)
+        time.sleep(OBSTACLE_FORWARD_TIME)
 
     @maybe_no_move
     def _turn_left(self):
