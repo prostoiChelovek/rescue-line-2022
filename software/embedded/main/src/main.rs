@@ -241,19 +241,26 @@ mod app {
         });
     }
 
-    #[task(shared = [platform_stepper, platform_limit, enable_pin, platform_lift_cmd])]
+    #[task(shared = [platform_stepper, platform_limit, enable_pin, platform_lift_cmd, interfacing])]
     fn lift_platform_cmd(mut cx: lift_platform_cmd::Context, id: CommandId) {
-        (cx.shared.platform_stepper, cx.shared.enable_pin).lock(|stepper, en| {
+        (cx.shared.platform_stepper, cx.shared.enable_pin, cx.shared.platform_limit).lock(|stepper, en, limit| {
+            if limit.is_low() {
+                cx.shared.interfacing.lock(|interfacing| {
+                    interfacing.finish_executing(id).unwrap();
+                });
+                return
+            }
+
             en.set_low();
             stepper.set_direciton(StepperDireciton::Clockwise);
             stepper.set_speed(PLATFORM_SPEED.Hz());
-        });
 
-        cx.shared.platform_lift_cmd.lock(|platform_lift_cmd| {
-            if platform_lift_cmd.is_some() {
-                // TODO: handle
-            }
-            *platform_lift_cmd = Some(id);
+            cx.shared.platform_lift_cmd.lock(|platform_lift_cmd| {
+                if platform_lift_cmd.is_some() {
+                    // TODO: handle
+                }
+                *platform_lift_cmd = Some(id);
+            });
         });
     }
 
