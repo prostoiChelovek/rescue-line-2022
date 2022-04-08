@@ -87,8 +87,8 @@ class RobotController:
         self._can_go = False
 
         GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(10, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(10, GPIO.RISING, callback=self._button_handler)
+        GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(23, GPIO.RISING, callback=self._button_handler)
 
     def loop(self):
         while True:
