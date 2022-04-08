@@ -11,8 +11,8 @@ GREEN_COLOR_RANGE = (
         (200, 255, 180)
         )
 SILVER_COLOR_RANGE = (
-        (0, 0, 0),
-        (0, 0, 0)
+        (55, 70, 90),
+        (90, 90, 115)
         )
 OBSTACLE_COLOR_RANGE = (
         (0, 0, 0),
