@@ -26,8 +26,8 @@ mod app {
     // TODO: kinda dirty but gonna go it for now
     const GRIPPER_OPEN_DUTIES: (u16, u16) = (1, 2);
     const GRIPPER_CLOSE_DUTIES: (u16, u16) = (2, 1);
-    const PLATFORM_SPEED: u32 = 1500; // sps
-    const PLATFORM_LOWER_TIME: u32 = 1000; // ms
+    const PLATFORM_SPEED: u32 = 15000; // sps
+    const PLATFORM_LOWER_TIME: u32 = 1950; // ms
 
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
