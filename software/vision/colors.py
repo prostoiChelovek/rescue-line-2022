@@ -4,11 +4,11 @@ from .common import clean_mask
 
 BLACK_COLOR_RANGE = (
         (0, 0, 0),
-        (50, 50, 65)
+        (60, 60, 60)
         )
 GREEN_COLOR_RANGE = (
-        (40, 90, 50),
-        (70, 110, 70)
+        (140, 225, 100),
+        (200, 255, 180)
         )
 SILVER_COLOR_RANGE = (
         (0, 0, 0),
