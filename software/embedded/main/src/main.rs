@@ -26,7 +26,8 @@ mod app {
     // TODO: kinda dirty but gonna go it for now
     const GRIPPER_OPEN_DUTIES: (u16, u16) = (1, 2);
     const GRIPPER_CLOSE_DUTIES: (u16, u16) = (2, 1);
-    const PLATFORM_LOWER_TIME: u32 = 500; // ms
+    const PLATFORM_SPEED: u32 = 1500; // sps
+    const PLATFORM_LOWER_TIME: u32 = 1000; // ms
 
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
@@ -245,7 +246,7 @@ mod app {
         (cx.shared.platform_stepper, cx.shared.enable_pin).lock(|stepper, en| {
             en.set_low();
             stepper.set_direciton(StepperDireciton::Clockwise);
-            stepper.set_speed(500_u32.Hz());
+            stepper.set_speed(PLATFORM_SPEED.Hz());
         });
 
         cx.shared.platform_lift_cmd.lock(|platform_lift_cmd| {
@@ -261,7 +262,7 @@ mod app {
         (cx.shared.platform_stepper, cx.shared.enable_pin).lock(|stepper, en| {
             en.set_low();
             stepper.set_direciton(StepperDireciton::CounterClockwise);
-            stepper.set_speed(500_u32.Hz());
+            stepper.set_speed(PLATFORM_SPEED.Hz());
         });
         stop_platform_lower::spawn_after(PLATFORM_LOWER_TIME.millis(), id).unwrap();
     }
