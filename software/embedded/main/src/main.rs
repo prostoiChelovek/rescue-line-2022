@@ -26,6 +26,7 @@ mod app {
     // TODO: kinda dirty but gonna go it for now
     const GRIPPER_OPEN_DUTIES: (u16, u16) = (1, 2);
     const GRIPPER_CLOSE_DUTIES: (u16, u16) = (2, 1);
+    const PLATFORM_LOWER_TIME: u32 = 500; // ms
 
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
@@ -243,6 +244,7 @@ mod app {
     fn lift_platform_cmd(mut cx: lift_platform_cmd::Context, id: CommandId) {
         (cx.shared.platform_stepper, cx.shared.enable_pin).lock(|stepper, en| {
             en.set_low();
+            stepper.set_direciton(StepperDireciton::Clockwise);
             stepper.set_speed(500_u32.Hz());
         });
 
@@ -251,6 +253,27 @@ mod app {
                 // TODO: handle
             }
             *platform_lift_cmd = Some(id);
+        });
+    }
+
+    #[task(shared = [platform_stepper, platform_limit, enable_pin])]
+    fn lower_platform_cmd(cx: lower_platform_cmd::Context, id: CommandId) {
+        (cx.shared.platform_stepper, cx.shared.enable_pin).lock(|stepper, en| {
+            en.set_low();
+            stepper.set_direciton(StepperDireciton::CounterClockwise);
+            stepper.set_speed(500_u32.Hz());
+        });
+        stop_platform_lower::spawn_after(PLATFORM_LOWER_TIME.millis(), id).unwrap();
+    }
+
+    #[task(shared = [platform_stepper, interfacing])]
+    fn stop_platform_lower(mut cx: stop_platform_lower::Context, id: CommandId) {
+        cx.shared.platform_stepper.lock(|stepper| {
+            stepper.stop();
+        });
+
+        cx.shared.interfacing.lock(|interfacing| {
+            interfacing.finish_executing(id).unwrap();
         });
     }
 
@@ -308,9 +331,9 @@ mod app {
                 Command::Stop => stop_cmd::spawn(id).unwrap(),
                 Command::SetSpeed(params) => set_speed_cmd::spawn(id, params).unwrap(),
                 Command::LiftGripper => lift_platform_cmd::spawn(id).unwrap(),
+                Command::LowerGripper => lower_platform_cmd::spawn(id).unwrap(),
                 Command::OpenGripper => open_gripper_cmd::spawn(id).unwrap(),
                 Command::CloseGripper => close_gripper_cmd::spawn(id).unwrap(),
-                _ => {}
             }
         });
     }
