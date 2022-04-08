@@ -234,13 +234,13 @@ class RobotController:
 
     @maybe_no_move
     def _turn_left(self):
-        self._robot.set_speed(FOLLOWING_SPEED, -FOLLOWING_SPEED)
+        self._robot.set_speed(-FOLLOWING_SPEED, FOLLOWING_SPEED)
         time.sleep(TURN_TIME)
         self._robot.set_speed(0, 0)
 
     @maybe_no_move
     def _turn_right(self):
-        self._robot.set_speed(-FOLLOWING_SPEED, FOLLOWING_SPEED)
+        self._robot.set_speed(FOLLOWING_SPEED, -FOLLOWING_SPEED)
         time.sleep(TURN_TIME)   
         self._robot.set_speed(0, 0)
 
@@ -254,8 +254,8 @@ class RobotController:
         offset = line_x - LINE_TARGET_X
         correction = self._pid(offset) or 0
 
-        new_speed = (-clamp_speed(speed - correction),
-                     -clamp_speed(speed + correction))
+        new_speed = (-clamp_speed(speed + correction),
+                     -clamp_speed(speed - correction))
         self._robot.set_speed(*new_speed)
 
         logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")

@@ -46,8 +46,7 @@ class Robot:
             return
 
         self._execute_command(PyCommand(Command.SetSpeed,
-                              SetSpeedParams(left,
-                                             right)),
+                              SetSpeedParams(-left, -right)),
                               timeout)
 
     def stop(self, timeout: Optional[float] = None):
