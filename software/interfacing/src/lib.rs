@@ -144,6 +144,7 @@ impl Interfacing {
 
     pub fn start_executing(&mut self, id: CommandId) {
         self.commands[&id].status = CommandExecutionStatus::Started;
+        self.send_message(&Message::Ack(id.into())).unwrap();
     }
 
     pub fn finish_executing(&mut self, id: CommandId) -> Result<(), MessageSerializeErorr> {

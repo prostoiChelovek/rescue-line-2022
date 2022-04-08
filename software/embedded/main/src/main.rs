@@ -322,10 +322,12 @@ mod app {
             interfacing.finish_executing(id).unwrap();
         });
     }
+
     #[task(shared = [interfacing])]
     fn handle_command(mut cx: handle_command::Context, id: CommandId) {
         cx.shared.interfacing.lock(|interfacing| {
             let cmd = interfacing.get_command(id);
+            interfacing.start_executing(id);
             rprintln!("cmd: {:?}", cmd);
 
             match cmd {
