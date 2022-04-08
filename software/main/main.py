@@ -69,9 +69,9 @@ class RobotController:
         self._robot = Robot()
         self._cap = BufferlessCapture(0)
 
-        self._pid = PID(Kp=20.0, Ki=0.0, Kd=0.0, setpoint=0.0,
-                        output_limits=(-FOLLOWING_SPEED * 2,
-                                       FOLLOWING_SPEED * 2))
+        self._pid = PID(Kp=10.0, Ki=1.0, Kd=5.0, setpoint=0.0,
+                        output_limits=(-FOLLOWING_SPEED / 2,
+                                       FOLLOWING_SPEED / 2))
         self._markers_history = []
         self._last_line_x = None
         self._state = State.FOLLOWING_LINE
