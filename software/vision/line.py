@@ -24,7 +24,7 @@ def segment_unconnected(img):
 
 def get_best_region(regions, img_width):
     def region_score(region):
-        return math.sqrt(region.area) * 0.25 + abs(region.centroid[1] - img_width / 2)
+        return math.sqrt(region.area) * -0.5 + abs(region.centroid[1] - img_width / 2)
     return max(regions, key=region_score, default=None)
 
 
