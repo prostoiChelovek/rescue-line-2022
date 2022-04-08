@@ -173,12 +173,6 @@ class RobotController:
                 marker = max(set(self._markers_history),
                              key=self._markers_history.count)
 
-            if marker == intersection.MarkersPosition.NONE:
-                marker = {
-                        IntersectionType.LEFT_TURN: intersection.MarkersPosition.LEFT,
-                        IntersectionType.RIGHT_TURN: intersection.MarkersPosition.RIGHT,
-                        }.get(self._intersection_type, intersection.MarkersPosition.NONE)
-
             logging.debug(f"Marker: {marker}")
 
             if marker == intersection.MarkersPosition.NONE:
