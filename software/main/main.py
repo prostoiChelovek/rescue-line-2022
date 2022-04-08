@@ -86,9 +86,8 @@ class RobotController:
 
         self._can_go = False
 
-        GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(23, GPIO.RISING, callback=self._button_handler)
+        GPIO.setup(37, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(37, GPIO.RISING, callback=self._button_handler, bouncetime=1000)
 
     def loop(self):
         while True:
@@ -270,10 +269,10 @@ class RobotController:
 
         logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
 
-    def _button_handler(self):
-        if self._can_go:
-            self._robot.stop()
+    def _button_handler(self, _):
         self._can_go = not self._can_go
+        time.sleep(0.2)
+        self._robot.stop()
 
     def shutdown(self):
         self._robot.shutdown()
