@@ -15,8 +15,8 @@ SILVER_COLOR_RANGE = (
         (90, 90, 115)
         )
 OBSTACLE_COLOR_RANGE = (
-        (0, 0, 0),
-        (0, 0, 0)
+        (80, 60, 55),
+        (110, 70, 65)
         )
 
 
