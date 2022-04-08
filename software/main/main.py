@@ -8,6 +8,7 @@ from cv2 import cv2 as cv
 import numpy as np
 
 from simple_pid import PID
+import RPi.GPIO as GPIO
 
 from vision import colors, line
 from vision.camera import BufferlessCapture
@@ -83,6 +84,12 @@ class RobotController:
 
         self._intersection_type = None
 
+        self._can_go = False
+
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(10, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(10, GPIO.RISING, callback=self._button_handler)
+
     def loop(self):
         while True:
             start = time.time()
@@ -91,6 +98,9 @@ class RobotController:
             frame = cv.resize(frame,
                               (frame.shape[1] // 2, frame.shape[0] // 2))
 
+            if not self._can_go:
+                continue
+
             if self._state == State.FOLLOWING_LINE:
                 window = frame[(frame.shape[0] - line.WINDOW_HEIGHT):]
                 window_area = window.shape[0] * window.shape[1]
@@ -98,6 +108,7 @@ class RobotController:
                 if np.count_nonzero(silver) / window_area >= INTERSECTION_FILL_FRAC:
                     self._intersection_forward()
                     self._state = State.COLLECTING
+                    return
 
                 self._line_loop(frame)
             elif self._state == State.COLLECTING:
@@ -259,8 +270,14 @@ class RobotController:
 
         logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
 
+    def _button_handler(self):
+        if self._can_go:
+            self._robot.stop()
+        self._can_go = not self._can_go
+
     def shutdown(self):
         self._robot.shutdown()
+        GPIO.cleanup()
 
 
 def main():
