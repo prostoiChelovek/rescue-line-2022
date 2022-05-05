@@ -5,7 +5,7 @@ from typing import Optional
 import coloredlogs
 import functools
 
-from cv2 import cv2 as cv
+import cv2 as cv
 import numpy as np
 
 from simple_pid import PID
