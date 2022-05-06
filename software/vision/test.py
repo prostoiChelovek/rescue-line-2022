@@ -5,7 +5,7 @@ import numpy as np
 import cv2 as cv
 
 from .common import left_half, lower_row, mid_row, upper_row
-from .line import validate_window
+from .line import find_window, validate_window
 from .window import Window, win2px
 
 LINE_ANGLE = -15  # deg
@@ -71,3 +71,47 @@ def test_empty_mid_row_valid(line_win: Window):
                          indirect=True)
 def test_line_window_valid(line_win: Window):
     assert validate_window(line_win.roi)
+
+
+def test_find_window_finds_something(line_win: Window):
+    found_win = find_window(line_win.img, 0)
+    assert found_win is not None
+
+
+def test_find_window_no_false_positive(line_win: Window):
+    line_win.img.fill(0)
+    found_win = find_window(line_win.img, 0)
+    assert found_win is None
+
+
+def test_find_window_finds_lowest(line_win: Window):
+    found_win = find_window(line_win.img, 0)
+    assert found_win is not None
+    assert found_win.end == line_win.img.shape[0]
+
+
+def test_find_window_with_small_gap(line_win: Window):
+    lower_row(line_win.img).fill(0)
+    found_win = find_window(line_win.img, 0)
+
+    height = line_win.img.shape[0]
+    assert found_win is not None
+    assert found_win.end < height
+    assert found_win.end > height - win2px(1)
+
+
+def test_find_window_not_too_far(line_win: Window):
+    lower_row(line_win.img, height=win2px(1.5)).fill(0)
+    found_win = find_window(line_win.img, 0, max_offset=3)
+
+    height = line_win.img.shape[0]
+    assert found_win is not None
+    assert found_win.end < height
+    assert found_win.end >= height - win2px(3)
+
+
+def test_find_window_does_not_find_if_too_far(line_win: Window):
+    lower_row(line_win.img, height=win2px(1.5)).fill(0)
+    found_win = find_window(line_win.img, 0, max_offset=1)
+
+    assert found_win is None

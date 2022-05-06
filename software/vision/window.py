@@ -11,6 +11,14 @@ def win2px(pos: float) -> int:
     return round(pos * WINDOW_HEIGHT)
 
 
+def px2win(px: int) -> float:
+    return px / WINDOW_HEIGHT
+
+
+def windows_in_image(img: cv.Mat) -> float:
+    return px2win(img.shape[0]) - 1
+
+
 class Window:
     def __init__(self, img: cv.Mat, start: float) -> None:
         self.img = img

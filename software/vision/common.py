@@ -27,8 +27,8 @@ def upper_row(mat: cv.Mat) -> cv.Mat:
     return mat[0,:]
 
 
-def lower_row(mat: cv.Mat) -> cv.Mat:
-    return mat[mat.shape[0] - 1,:]
+def lower_row(mat: cv.Mat, height: int = 1) -> cv.Mat:
+    return mat[mat.shape[0] - height:,:]
 
 
 def mid_row(mat: cv.Mat) -> cv.Mat:
