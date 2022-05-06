@@ -1,10 +1,14 @@
 from __future__ import annotations
+from typing import List
 
 import cv2 as cv
+import skimage.measure
 
 from .common import draw_horizontal_line
 
 WINDOW_HEIGHT = 5
+
+RegionProperties = skimage.measure._regionprops.RegionProperties
 
 
 def win2px(pos: float) -> int:
@@ -28,6 +32,11 @@ class Window:
     @property
     def roi(self) -> cv.Mat:
         return self.img[self.start:self.end, :]
+
+    @property
+    def regions(self) -> List[RegionProperties]:
+        labels = skimage.measure.label(self.roi)
+        return skimage.measure.regionprops(label_image=labels)
 
     def draw(self, img: cv.Mat, color = (0, 0, 255)):
         draw_horizontal_line(img, self.start - 1)

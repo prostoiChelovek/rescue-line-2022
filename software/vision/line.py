@@ -49,6 +49,9 @@ def main():
 
     win.draw(img)
 
+    from skimage import img_as_ubyte
+    cv.imshow("r", img_as_ubyte(win.regions[0].image))
+
     cv.imshow("mask", mask)
     cv.imshow("win", win.roi)
     cv.imshow("img", img)

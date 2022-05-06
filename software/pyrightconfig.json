@@ -1,5 +1,5 @@
 {
-    "extraPaths": [".."],
+    "extraPaths": ["..", "./interfacing_py/.env/lib/python3.10/site-packages/"],
     "venvPath": "./interfacing_py/.env",
     "stubPath": "/home/chelovek/projects/python-type-stubs"
 }
