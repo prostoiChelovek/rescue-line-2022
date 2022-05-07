@@ -22,9 +22,11 @@ def validate_window(win: Union[cv.Mat, Window]) -> bool:
 
 def find_window(img: cv.Mat,
                 start: float = 0,
-                max_offset: Optional[float] = None) -> Optional[Window]:
+                max_offset: Optional[float] = None,
+                step: Optional[float] = None) -> Optional[Window]:
     max_pos = max_offset or windows_in_image(img)
-    for pos in np.arange(start, max_pos, FIND_WINDOW_STEP):
+    step = step or 1.0
+    for pos in np.arange(start, max_pos, step):
         win = Window(img, pos)
         if validate_window(win):
             return win
@@ -42,7 +44,7 @@ def main():
     img = cv.resize(img, (img.shape[1] // 4, img.shape[0] // 4))
 
     mask = find_black(img)
-    win = find_window(mask)
+    win = find_window(mask, step=FIND_WINDOW_STEP)
     if win is None:
         print("no window")
         return

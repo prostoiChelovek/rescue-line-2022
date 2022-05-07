@@ -23,8 +23,8 @@ def draw_vertical_line(img: cv.Mat, x: int):
     cv.line(img, (x, 0), (x, img.shape[0]), (0, 0, 255))
 
 
-def upper_row(mat: cv.Mat) -> cv.Mat:
-    return mat[0,:]
+def upper_row(mat: cv.Mat, height: int = 1) -> cv.Mat:
+    return mat[0:height,:]
 
 
 def lower_row(mat: cv.Mat, height: int = 1) -> cv.Mat:
