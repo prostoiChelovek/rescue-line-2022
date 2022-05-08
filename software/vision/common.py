@@ -1,3 +1,4 @@
+import math
 from typing import Tuple
 import numpy as np
 import cv2 as cv
@@ -24,6 +25,18 @@ def draw_horizontal_line(img: cv.Mat, y: int, color: ColorT):
 
 def draw_vertical_line(img: cv.Mat, x: int, color: ColorT):
     cv.line(img, (x, 0), (x, img.shape[0]), color)
+
+
+def draw_angled_line(img: cv.Mat,
+                     x1: int,
+                     y1: int,
+                     y2: int,
+                     angle: float,
+                     color: tuple,
+                     thickness: int = 1) -> None:
+    x2 = x1 + abs(y1 - y2) * math.tan(angle)
+    x1, y1, x2, y2 = map(int, (x1, y1, x2, y2))
+    cv.line(img, (x1, y1), (x2, y2), color, thickness)
 
 
 def upper_row(mat: cv.Mat, height: int = 1) -> cv.Mat:
