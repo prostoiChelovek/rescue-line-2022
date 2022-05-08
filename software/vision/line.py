@@ -14,7 +14,7 @@ from .common import draw_angled_line, get_fill_frac, is_mat_empty, lower_row, up
 LINE_WINDOW_STEP = 0.5
 LINE_WINDOW_FIRST_MAX_OFFSET = 5.0
 LINE_WINDOWS_DISTANCE_RANGE = (2.0, 10.0)
-MAX_REGIONS_DISTANCE = 10  # shortest distance
+MAX_REGIONS_DISTANCE = 30  # shortest distance
 
 
 def arange_offset(start: float, offset: float, step: float, include_end: bool = False) -> np.ndarray:
