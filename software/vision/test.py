@@ -5,7 +5,9 @@ import numpy as np
 import cv2 as cv
 
 from .common import left_half, lower_row, mid_row, upper_row
-from .line import FIND_WINDOW_STEP, find_window, validate_window
+from .line import LINE_WINDOWS_DISTANCE_RANGE, WindowPair, \
+                   arange_offset, find_line_window_pair, \
+                   find_window, validate_window
 from .window import Window, win2px, windows_in_image
 
 LINE_ANGLE = -15  # deg
@@ -34,6 +36,18 @@ def line_img():
 @pytest.fixture
 def line_win(line_img, offset: float = 0.0):
     return Window(line_img, offset)
+
+
+def test_arange_limited_offset():
+    assert np.array_equal(arange_offset(0, 10, 1), np.arange(0, 10, 1))
+    assert np.array_equal(arange_offset(5, 10, 1), np.arange(5, 15, 1))
+    assert np.array_equal(arange_offset(5, 2, -1), np.arange(5, 3, -1))
+    with pytest.raises(ValueError):
+        arange_offset(0, 10, 0)
+    assert np.array_equal(arange_offset(0, 10, 1, True),
+                          np.linspace(0, 10, 11, endpoint=True))
+    assert np.array_equal(arange_offset(5, 2, -1, True),
+                          np.linspace(5, 3, 3, endpoint=True))
 
 
 def test_empty_invalid(line_win: Window):
@@ -128,3 +142,75 @@ def test_find_window_negative_step(line_win: Window):
     assert found_win is not None
     assert found_win.end > 0
     assert found_win.end <= win2px(3)
+
+
+def test_find_window_pair_finds_something(line_win: Window):
+    wins = find_line_window_pair(line_win.img)
+
+    assert wins != WindowPair.empty()
+
+
+def test_find_window_pair_no_false_positive(line_win: Window):
+    line_win.img.fill(0)
+    wins = find_line_window_pair(line_win.img)
+
+    assert wins.lower is None
+    assert wins.upper is None
+
+
+def test_find_window_pair_not_same(line_win: Window):
+    wins = find_line_window_pair(line_win.img)
+
+    assert wins.is_complete
+    assert wins.lower != wins.upper
+
+
+def test_find_window_pair_correct_distance_in_px(line_win: Window):
+    wins = find_line_window_pair(line_win.img)
+
+    assert wins.is_complete
+    assert wins.lower.start - wins.upper.end \
+                == win2px(LINE_WINDOWS_DISTANCE_RANGE[1])
+
+
+def test_find_window_pair_max_distance(line_win: Window):
+    wins = find_line_window_pair(line_win.img)
+
+    assert wins.is_complete
+    assert wins.lower.pos + 1 + LINE_WINDOWS_DISTANCE_RANGE[1] == \
+             wins.upper.pos
+
+
+def test_find_window_pair_min_distance(line_win: Window):
+    line_win.img[:line_win.start - win2px(1 + LINE_WINDOWS_DISTANCE_RANGE[0]),:].fill(0)
+    wins = find_line_window_pair(line_win.img)
+
+    assert wins.is_complete
+    assert wins.lower.pos + 1 + LINE_WINDOWS_DISTANCE_RANGE[0] == \
+            wins.upper.pos
+
+
+def test_find_window_pair_only_one(line_win: Window):
+    line_win.img[:line_win.start, :].fill(0)
+    wins = find_line_window_pair(line_win.img)
+
+    assert wins.lower is not None and wins.upper is None
+
+
+def test_find_window_pair_gap_inbetween(line_win: Window):
+    line_win.img[line_win.start - win2px(5):line_win.start - win2px(1), :].fill(0)
+    wins = find_line_window_pair(line_win.img)
+
+    assert wins.is_complete
+    assert wins.lower.pos + 1 + LINE_WINDOWS_DISTANCE_RANGE[1] == \
+            wins.upper.pos
+
+
+def test_find_window_pair_gap_bellow(line_win: Window):
+    line_win.roi.fill(0)
+    wins = find_line_window_pair(line_win.img)
+
+    assert wins.is_complete
+    assert wins.lower.pos == 1
+    assert wins.lower.pos + 1 + LINE_WINDOWS_DISTANCE_RANGE[1] == \
+            wins.upper.pos

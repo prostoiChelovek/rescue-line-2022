@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import List
+from typing import List, Union
 
 import cv2 as cv
 import skimage.measure
+import numpy as np
 
 from .common import draw_horizontal_line
 
@@ -26,8 +27,18 @@ def windows_in_image(img: cv.Mat) -> float:
 class Window:
     def __init__(self, img: cv.Mat, start: float) -> None:
         self.img = img
-        self.end = img.shape[0] - win2px(start)
-        self.start = self.end - WINDOW_HEIGHT
+        self.pos = start
+
+        if self.start < 0 or self.end > self.img.shape[0]:
+            raise ValueError("out of bounds")
+
+    @property
+    def end(self) -> int:
+        return self.img.shape[0] - win2px(self.pos)
+
+    @property
+    def start(self) -> int:
+        return self.end - WINDOW_HEIGHT
 
     @property
     def roi(self) -> cv.Mat:
@@ -39,19 +50,18 @@ class Window:
         return skimage.measure.regionprops(label_image=labels)
 
     def draw(self, img: cv.Mat, color = (0, 0, 255)):
-        draw_horizontal_line(img, self.start - 1)
-        draw_horizontal_line(img, self.end)
         mid = img.shape[1] // 2
         cv.line(img, (mid, self.start), (mid, self.end), color)
+        draw_horizontal_line(img, self.start - 1, color)
+        draw_horizontal_line(img, self.end, color)
 
-    def __str__(self) -> str:
-        return f"Window(start={self.start}, end={self.end})"
+    def __repr__(self) -> str:
+        return f"Window(pos={self.pos}, start={self.start}, end={self.end})"
 
-    def __add__(self, offset: float) -> Window:
-        w = Window(self.img, 0)
-        w.start = self.start - win2px(offset)
-        w.end = self.end - win2px(offset)
-        return w
-
-    def __sub__(self, offset: float) -> Window:
-        return self + (-offset)
+    def __eq__(self, o: Union[Window, None]) -> bool:
+        if isinstance(o, Window):
+            return self.pos == o.pos and np.array_equal(self.img, o.img)
+        if o is None:
+            return False
+        else:
+            raise NotImplementedError

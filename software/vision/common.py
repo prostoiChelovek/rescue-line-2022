@@ -1,5 +1,8 @@
+from typing import Tuple
 import numpy as np
 import cv2 as cv
+
+ColorT = Tuple[int, int, int]
 
 
 def clean_mask(mask):
@@ -15,12 +18,12 @@ def clean_mask(mask):
     return closing
 
 
-def draw_horizontal_line(img: cv.Mat, y: int):
-    cv.line(img, (0, y), (img.shape[1], y), (0, 0, 255))
+def draw_horizontal_line(img: cv.Mat, y: int, color: ColorT):
+    cv.line(img, (0, y), (img.shape[1], y), color)
 
 
-def draw_vertical_line(img: cv.Mat, x: int):
-    cv.line(img, (x, 0), (x, img.shape[0]), (0, 0, 255))
+def draw_vertical_line(img: cv.Mat, x: int, color: ColorT):
+    cv.line(img, (x, 0), (x, img.shape[0]), color)
 
 
 def upper_row(mat: cv.Mat, height: int = 1) -> cv.Mat:
