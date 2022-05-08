@@ -135,18 +135,14 @@ def bound_middle(bound: Tuple[int, int]) -> int:
 
 
 def bounds_distance(a: Tuple[int, int], b: Tuple[int, int]) -> int:
-    return min(map(lambda bounds: min(map(abs, 
-                                          (
-                                              bounds[0][1] - bounds[1][0],
-                                              bounds[0][0] - bounds[1][0],
-                                              bounds[0][1] - bounds[1][1],
-                                              bound_middle(bounds[0]) - bound_middle(bounds[1]),
-                                          )
-                                          )
-                                      ),
-                   ((a, b), (b, a))
-                   )
-               )
+    return min(map(abs,
+                   (
+                   a[1] - b[0],
+                   a[0] - b[0],
+                   a[1] - b[1],
+                   a[0] - b[1],
+                   bound_middle(a) - bound_middle(b),
+                   )))
 
 
 def regions_distance(a: RegionProperties, b: RegionProperties) -> int:
