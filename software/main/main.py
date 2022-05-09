@@ -64,7 +64,7 @@ class RobotController:
         self._robot = Robot()
         self._cap = BufferlessCapture(0)
 
-        self._pid = PID(Kp=10.0, Ki=1.0, Kd=5.0, setpoint=0.0,
+        self._pid = PID(Kp=1.0, Ki=0.0, Kd=0.0, setpoint=0.0,
                         output_limits=(-FOLLOWING_SPEED / 2,
                                        FOLLOWING_SPEED / 2))
 
@@ -84,22 +84,26 @@ class RobotController:
 
             frame = self._cap.read()
 
+            black = colors.find_black(frame)
+            line_info = line.locate_line(black)
+
+            frame_half_width = frame.shape[1] // 2
+            x_offset_normalized = line_info / frame_half_width
+            error = x_offset_normalized + (line_info.angle or 0)
+            correction = self._pid(error) or 0
+
+            new_speed = (-clamp_speed(FOLLOWING_SPEED + correction),
+                         -clamp_speed(FOLLOWING_SPEED - correction))
+            self._robot.set_speed(*new_speed)
+
+            logging.debug(f"{error=} ; {correction=} ; {new_speed=}")
+
             dt = time.time() - start
             delay = LOOP_INTERVAL - dt
             if delay > 0:
                 time.sleep(delay)
             else:
                 logging.debug(f"loop delay: {delay}")
-
-    def _line_pid_loop(self, line_x, speed):
-        offset = line_x - LINE_TARGET_X
-        correction = self._pid(offset) or 0
-
-        new_speed = (-clamp_speed(speed + correction),
-                     -clamp_speed(speed - correction))
-        self._robot.set_speed(*new_speed)
-
-        logging.debug(f"err: {offset} ; correction: {correction} ; new speed: {new_speed}")
 
     def _button_handler(self, _):
         self._can_go = not self._can_go
