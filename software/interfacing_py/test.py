@@ -9,6 +9,9 @@ import termios
 from interfacing_py import *
 
 
+SPEED = 500
+
+
 @contextlib.contextmanager
 def raw_mode(file):
     old_attrs = termios.tcgetattr(file.fileno())
@@ -22,7 +25,7 @@ def raw_mode(file):
 
 
 async def main():
-    m = InterfacingManager("/dev/ttyS0")
+    m = InterfacingManager("/dev/ttyACM0", asyncio.get_event_loop())
 
     with raw_mode(sys.stdin):
         reader = asyncio.StreamReader()
@@ -35,13 +38,13 @@ async def main():
             if not ch or ord(ch) <= 4:
                 break
             if ch == b"w":
-                await m.execute(PyCommand(Command.SetSpeed, SetSpeedParams(1000, 1000)))
+                await m.execute(PyCommand(Command.SetSpeed, SetSpeedParams(SPEED, SPEED)))
             elif ch == b"s":
-                await m.execute(PyCommand(Command.SetSpeed, SetSpeedParams(-1000, -1000)))
+                await m.execute(PyCommand(Command.SetSpeed, SetSpeedParams(-SPEED, -SPEED)))
             elif ch == b"a":
-                await m.execute(PyCommand(Command.SetSpeed, SetSpeedParams(-1000, 1000)))
+                await m.execute(PyCommand(Command.SetSpeed, SetSpeedParams(-SPEED, SPEED)))
             elif ch == b"d":
-                await m.execute(PyCommand(Command.SetSpeed, SetSpeedParams(1000, -1000)))
+                await m.execute(PyCommand(Command.SetSpeed, SetSpeedParams(SPEED, -SPEED)))
             elif ch == b"q":
                 await m.execute(PyCommand(Command.Stop))
 
