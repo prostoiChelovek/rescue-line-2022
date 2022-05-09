@@ -72,6 +72,7 @@ class RobotController:
 
         self._can_go = False
 
+        GPIO.setmode(GPIO.BOARD)
         GPIO.setup(37, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         GPIO.add_event_detect(37, GPIO.RISING,
                               callback=self._button_handler,
