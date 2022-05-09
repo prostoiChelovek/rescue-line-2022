@@ -89,7 +89,7 @@ class RobotController:
             line_info = line.locate_line(wins)
 
             frame_half_width = frame.shape[1] // 2
-            x_offset_normalized = line_info / frame_half_width
+            x_offset_normalized = line_info.x_offset / frame_half_width
             error = x_offset_normalized + (line_info.angle or 0)
             correction = self._pid(error) or 0
 
