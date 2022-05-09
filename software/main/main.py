@@ -13,7 +13,6 @@ import RPi.GPIO as GPIO
 
 from vision import colors, line
 from vision.camera import BufferlessCapture
-import vision.intersection as intersection 
 
 from .robot import Robot
 from .settings import *
