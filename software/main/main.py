@@ -100,12 +100,19 @@ class RobotController:
                              -clamp_speed(FOLLOWING_SPEED - correction))
                 self._robot.set_speed(*new_speed)
 
-                logging.debug(f"{error=} ; {correction=} ; {new_speed=}")
+                logging.debug(f"{line_info=} ; {error=} ; {correction=} ; {new_speed=}")
+
+                wins.draw(frame)
+                line_info.draw(frame)
+
+            cv.imshow("frame", frame)
+            cv.imshow("black", black)
 
             dt = time.time() - start
             delay = LOOP_INTERVAL - dt
-            if delay > 0:
-                time.sleep(delay)
+            delay_ms = int(delay * 1000)
+            if delay_ms > 0:
+                cv.waitKey(delay_ms)
             else:
                 logging.debug(f"loop delay: {delay}")
 
