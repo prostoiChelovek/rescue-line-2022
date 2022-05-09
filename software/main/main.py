@@ -86,18 +86,21 @@ class RobotController:
 
             black = colors.find_black(frame)
             wins = line.find_line_window_pair(black)
-            line_info = line.locate_line(wins)
+            if wins == line.WindowPair.empty():
+                pass  # TODO
+            else:
+                line_info = line.locate_line(wins)
 
-            frame_half_width = frame.shape[1] // 2
-            x_offset_normalized = line_info.x_offset / frame_half_width
-            error = x_offset_normalized + (line_info.angle or 0)
-            correction = self._pid(error) or 0
+                frame_half_width = frame.shape[1] // 2
+                x_offset_normalized = line_info.x_offset / frame_half_width
+                error = x_offset_normalized + (line_info.angle or 0)
+                correction = self._pid(error) or 0
 
-            new_speed = (-clamp_speed(FOLLOWING_SPEED + correction),
-                         -clamp_speed(FOLLOWING_SPEED - correction))
-            self._robot.set_speed(*new_speed)
+                new_speed = (-clamp_speed(FOLLOWING_SPEED + correction),
+                             -clamp_speed(FOLLOWING_SPEED - correction))
+                self._robot.set_speed(*new_speed)
 
-            logging.debug(f"{error=} ; {correction=} ; {new_speed=}")
+                logging.debug(f"{error=} ; {correction=} ; {new_speed=}")
 
             dt = time.time() - start
             delay = LOOP_INTERVAL - dt
