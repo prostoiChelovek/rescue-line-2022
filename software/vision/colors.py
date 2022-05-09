@@ -21,22 +21,22 @@ OBSTACLE_COLOR_RANGE = (
 
 
 
-def find_black(img):
+def find_black(img) -> cv.Mat:
     return find_color(img, BLACK_COLOR_RANGE)
 
 
-def find_green(img):
+def find_green(img) -> cv.Mat:
     return find_color(img, GREEN_COLOR_RANGE)
 
 
-def find_silver(img):
+def find_silver(img) -> cv.Mat:
     return find_color(img, SILVER_COLOR_RANGE)
 
 
-def find_obstacle(img):
+def find_obstacle(img) -> cv.Mat:
     return find_color(img, OBSTACLE_COLOR_RANGE)
 
 
-def find_color(img, range):
-    mask = cv.inRange(img, *range)
+def find_color(img: cv.Mat, range_) -> cv.Mat:
+    mask = cv.inRange(img, *range_)
     return clean_mask(mask)

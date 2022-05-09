@@ -6,7 +6,7 @@ import cv2 as cv
 ColorT = Tuple[int, int, int]
 
 
-def clean_mask(mask):
+def clean_mask(mask: cv.Mat) -> cv.Mat:
     kernel_erote = np.ones((3, 3), np.uint8)
     erosion = cv.erode(mask, kernel_erote, iterations=1)
 

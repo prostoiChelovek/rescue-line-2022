@@ -85,7 +85,8 @@ class RobotController:
             frame = self._cap.read()
 
             black = colors.find_black(frame)
-            line_info = line.locate_line(black)
+            wins = line.find_line_window_pair(black)
+            line_info = line.locate_line(wins)
 
             frame_half_width = frame.shape[1] // 2
             x_offset_normalized = line_info / frame_half_width
