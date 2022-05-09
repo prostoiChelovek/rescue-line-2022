@@ -1,6 +1,6 @@
 import logging
 import threading
-import collections
+from queue import Queue
 
 from cv2 import cv2 as cv
 
@@ -12,7 +12,7 @@ class BufferlessCapture(threading.Thread):
         super().__init__(daemon=True)
 
         self._cap = cv.VideoCapture(name)
-        self._frame_buff = collections.deque(maxlen=1)
+        self._frame_buff = Queue(maxsize=2)
 
         self._cap.set(cv.CAP_PROP_FRAME_WIDTH, CAPTURE_RESOLUTION[0])
         self._cap.set(cv.CAP_PROP_FRAME_HEIGHT, CAPTURE_RESOLUTION[1])
@@ -26,9 +26,7 @@ class BufferlessCapture(threading.Thread):
             ret, frame = self._cap.read()
             if not ret:
                 logging.error("Failed to grab a frame")
-            self._frame_buff.append(frame)
+            self._frame_buff.put(frame)
 
     def read(self):
-        while len(self._frame_buff) == 0:
-            pass
-        return self._frame_buff.popleft()
+        return self._frame_buff.get(block=True, timeout=1)
