@@ -18,7 +18,7 @@ use core::{ops::Deref, mem::take};
 
 use heapless::{spsc::Queue, FnvIndexMap};
 
-pub const BAUD_RATE: u32 = 115200;
+pub const BAUD_RATE: u32 = 1_000_000;
 pub const START_BYTE: u8 = 0b1010101;
 pub const RETRY_TIMEOUT: u32 = 50; // ms
 
