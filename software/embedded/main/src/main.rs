@@ -13,7 +13,7 @@ mod app {
         timer, timer::{monotonic::MonoTimer, Timer},
         gpio, gpio::{
             gpioa::{PA10, PA9, PA8}, gpiob::{PB3, PB10, PB4, PB5},
-            Output, PushPull, gpioc::PC4, Input, PullUp
+            Output, PushPull, gpioc::PC7, Input, PullUp,
         },
         serial, serial::{config::Config, Event, Serial}, pwm::PwmChannel,
     };
@@ -37,7 +37,7 @@ mod app {
         left_stepper: Stepper<PA10<Output<PushPull>>, PB4<Output<PushPull>>>,
         right_stepper: Stepper<PB3<Output<PushPull>>, PB10<Output<PushPull>>>,
         platform_stepper: Stepper<PB5<Output<PushPull>>, PA8<Output<PushPull>>>,
-        platform_limit: PC4<Input<PullUp>>,
+        platform_limit: PC7<Input<PullUp>>,
         platform_lift_cmd: Option<CommandId>,
         enable_pin: PA9<Output<PushPull>>,
         servos: (PwmChannel<pac::TIM3, timer::C1>, PwmChannel<pac::TIM3, timer::C3>),
@@ -88,7 +88,7 @@ mod app {
             stepper
         };
 
-        let mut platform_limit = gpioc.pc4.into_pull_up_input();
+        let mut platform_limit = gpioc.pc7.into_pull_up_input();
         platform_limit.make_interrupt_source(&mut syscfg);
         platform_limit.enable_interrupt(&mut ctx.device.EXTI);
         platform_limit.trigger_on_edge(&mut ctx.device.EXTI, gpio::Edge::Falling);
@@ -285,7 +285,7 @@ mod app {
         });
     }
 
-    #[task(binds = EXTI4, shared = [platform_stepper, platform_limit, interfacing, platform_lift_cmd])]
+    #[task(binds = EXTI9_5, shared = [platform_stepper, platform_limit, interfacing, platform_lift_cmd])]
     fn stop_platform(mut cx: stop_platform::Context) {
         (cx.shared.platform_stepper, cx.shared.platform_limit).lock(|stepper, limit| {
             limit.clear_interrupt_pending_bit();
