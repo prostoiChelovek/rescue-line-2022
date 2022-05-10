@@ -13,6 +13,7 @@ import RPi.GPIO as GPIO
 
 from vision import colors, line
 from vision.camera import BufferlessCapture
+from vision.window import win2px
 
 from .robot import Robot
 from .settings import *
@@ -83,8 +84,11 @@ class RobotController:
             start = time.time()
 
             frame = self._cap.read()
+            line_win_max_y = win2px(line.LINE_WINDOW_FIRST_MAX_OFFSET + 1 \
+                                    + line.LINE_WINDOWS_DISTANCE_RANGE[1] + 1)
+            frame_line = frame[frame.shape[0] - line_win_max_y:, :]
 
-            black = colors.find_black(frame)
+            black = colors.find_black(frame_line)
             wins = line.find_line_window_pair(black)
             if wins == line.WindowPair.empty():
                 pass  # TODO
