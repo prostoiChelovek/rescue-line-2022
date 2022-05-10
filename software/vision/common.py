@@ -1,5 +1,5 @@
 import math
-from typing import Tuple
+from typing import Iterable, List, Tuple
 import numpy as np
 import cv2 as cv
 
@@ -72,3 +72,11 @@ def get_fill_frac(mat: cv.Mat) -> float:
     if area == 0:
         return 0.0
     return np.count_nonzero(mat) / area
+
+
+def flatten(l: Iterable[tuple]) -> list:
+    return [y for x in l for y in x]
+
+
+def group(l, elements: int) -> List[tuple]:
+    return [tuple(l[i + x] for x in range(elements)) for i in range(0, len(l) - (elements - 1), elements)]

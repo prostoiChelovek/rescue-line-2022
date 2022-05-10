@@ -131,6 +131,15 @@ class RobotController:
 
 
 def main():
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    color_ranges_path = os.path.abspath(os.path.join(script_dir, "../colors.csv"))
+    logging.info(f"Loading color ranges from {color_ranges_path}")
+    try:
+        colors.load_color_ranges(color_ranges_path)
+        colors.save_color_ranges(color_ranges_path)
+    except Exception as e:
+        logging.error(f"Could not load color ranges: {e}")
+
     robot = RobotController()
 
     try:
