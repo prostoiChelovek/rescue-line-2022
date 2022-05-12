@@ -1,0 +1,15 @@
+\usepackage[utf8x]{inputenc}
+% \usepackage[T2A]{fontenc}
+
+\usepackage[russian, english]{babel}
+\babelfont{rm}{Droid Serif}
+\babelfont{sf}{Droid Sans}
+\babelfont{tt}{Droid Sans Mono Slashed}
+
+\hypersetup{colorlinks=true,linkcolor=blue}
+
+\let\oldsection\section
+\renewcommand\section{\pagebreak\oldsection}
+
+\usepackage{siunitx}
+\sisetup{per-mode=symbol}
