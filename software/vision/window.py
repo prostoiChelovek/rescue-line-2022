@@ -30,7 +30,7 @@ class Window:
         self.pos = start
 
         if self.start < 0 or self.end > self.img.shape[0]:
-            raise ValueError("out of bounds")
+            raise ValueError(f"out of bounds: {self.start=}, {self.end=}")
 
     @property
     def end(self) -> int:
