@@ -129,3 +129,99 @@ digraph {
 
 #+RESULTS:
 [[file:images/electronics-diag.png]]
+* Программная часть
+** Контроллер двигателей
+Программа для микроконтраллера была написана на =Rust= с использованием фреймворка =RTIC=. =Rust= - компилируемый, статически типизированный язык программирования среднего уровня, основной особенностью которого является гарантия безопасности управления памяти на этапе компиляции. =RTIC= - Real Time Interrupt-driven Concurency - библиотека реализующая конкурентность, удобный интерфейс для управления общими ресурсами, а также гарантию отсутствия взаимных блокировок на этапе компиляции.
+
+Генерация управляющего сигнала для драйверов ШД реализована с исопльзованием планировщика задач =RTIC=. Структура, представляющая шаговый двигатель, предоставляет метод =update=, который обновляет внутреннее состояние структуры, и может обновить уровень на выходе контроллера. Метод возвращает время, через которое он должен быть вызван в следующий раз. Внутреннее состояние контроллера ШД представляет из себя машину состояний, которая описывается следующим образом:
+#+begin_src rust
+state_machine! {
+    Idle(Start) => StartStepHigh, // Состояние_1(Событие) => Состояние_2
+
+    StartStepHigh(PulseStart) => StepHigh,
+    StepHigh(PulseEnd) => StartStepLow,
+
+    StartStepLow(PulseStart) => StepLow,
+    StepLow(PulseEnd) => StartStepHigh,
+
+    Idle(Stop) => Idle,
+    StartStepHigh(Stop) => Idle,
+    StepHigh(Stop) => StartStepLow [Stop],
+    StartStepLow(Stop) => Idle,
+    StepLow(Stop) => Idle,
+}
+#+end_src
+
+Сам метод выглядит следующим образом:
+#+begin_src rust
+pub fn update(&mut self) -> Option<MicrosDurationU32> {
+    if self.step_delay.is_none() {
+        return None;
+    }
+
+    match *self.state_machine.state() {
+        StepperStateState::Idle => { None }
+        StepperStateState::StartStepHigh => {
+            self.step.set_high().ok();
+            self.state_machine.consume(
+                        &StepperStateInput::PulseStart).unwrap();
+
+            Some(self.pulse_width)
+        },
+        StepperStateState::StartStepLow => {
+            self.step.set_low().ok();
+            self.state_machine.consume(
+                        &StepperStateInput::PulseStart).unwrap();
+
+            Some(self.step_delay.unwrap())
+        },
+        StepperStateState::StepHigh | StepperStateState::StepLow => {
+            self.state_machine.consume(
+                        &StepperStateInput::PulseEnd).unwrap();
+
+            self.update()
+        }
+    }
+}
+#+end_src
+
+Такой дизайн обусловлен тем, что, этот метод вызывается часто (до 5кГц), и имеет приоритет выше других задач, т.е. может прервать их выполнение. Проблема становится более заметной, если учесть, что одновременно могут работать до четырёх двигателей.
+
+Использование этого модуля в программе выгладит так:
+#+begin_src rust
+#[init]
+fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
+    let rcc = ctx.device.RCC.constrain();
+    let clocks = rcc.cfgr.sysclk(84.mhz()).freeze();
+    let mut syscfg = ctx.device.SYSCFG.constrain();
+
+    let gpiob = ctx.device.GPIOB.split();
+
+    let right_stepper = {
+        let (step, dir) = (gpiob.pb3.into_push_pull_output(),
+                           gpiob.pb10.into_push_pull_output());
+        let mut stepper = Stepper::new(step, dir,
+                                       || right::spawn().unwrap());
+        stepper.set_direciton(StepperDireciton::CounterClockwise);
+        stepper.set_speed(100_u32.Hz());
+        stepper
+    };
+
+    (
+        Shared { right_stepper },
+        Local { },
+        init::Monotonics(mono)
+    )
+}
+
+#[task(shared = [right_stepper], priority = 15)]
+fn right(mut cx: right::Context) {
+    cx.shared.right_stepper.lock(|stepper| {
+        let next_delay = stepper.update();
+        if let Some(next_delay) = next_delay {
+            right::spawn_after(next_delay).ok();
+        }
+    });
+}
+#+end_src
+** Протокол взаимодействия
