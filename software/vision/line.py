@@ -12,7 +12,7 @@ from .window import RegionProperties, Window, windows_in_image
 from .common import draw_angled_line, get_fill_frac, is_mat_empty, lower_row, upper_row
 
 LINE_WINDOW_STEP = 0.5
-LINE_WINDOW_FIRST_MAX_OFFSET = 5.0
+LINE_WINDOW_FIRST_MAX_OFFSET = 25.0
 LINE_WINDOWS_DISTANCE_RANGE = (2.0, 10.0)
 MAX_REGIONS_DISTANCE = 30  # shortest distance
 
@@ -84,7 +84,7 @@ def find_window(img: cv.Mat,
                 start: float = 0,
                 max_offset: Optional[float] = None,
                 step: Optional[float] = None) -> Optional[Window]:
-    max_offset  = max_offset or windows_in_image(img)
+    max_offset  = min(max_offset or math.inf, windows_in_image(img))
     step = step or 1.0
 
     for pos in arange_offset(start, max_offset, step, include_end=True):
