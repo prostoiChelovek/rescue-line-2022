@@ -98,11 +98,8 @@ class Gear:
     def tooth_width(self):
         return (180 * (1 + self.CLEARANCE)) / self.tooth_number + 2 * self.phi_r;
 
-    def mesh(self, b):
-        return right(self.pitch_radius + b.pitch_radius) \
-                     (rotate((0, 0, 180 / b.tooth_number * (1 if b.tooth_number % 2 == 0 else 2))) \
-                             (b()
-                             )
-                     )
+    @property
+    def mesh_rotation(self) -> float:
+        return 180 / self.tooth_number * (1 if self.tooth_number % 2 == 0 else 2)
 
 
