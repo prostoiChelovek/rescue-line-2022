@@ -39,7 +39,7 @@ class Gear:
     @property
     def alpha_spur(self):
         # Helix Angle in Transverse Section
-        return atan(tan(self.pressure_angle)/cos(self.helix_angle))
+        return atan(tan(radians(self.pressure_angle)) / cos(radians(self.helix_angle)))
 
     @property
     def base_diam(self):
@@ -83,7 +83,7 @@ class Gear:
     @property
     def torsion_angle(self):
         # for Extrusion
-        return degrees(self.width / (self.pitch_radius * tan(90 - self.helix_angle)))
+        return degrees(self.width / (self.pitch_radius * tan(degrees(90 - self.helix_angle))))
 
     @property
     def pitch_angle(self):
@@ -92,7 +92,7 @@ class Gear:
     @property
     def phi_r(self):
         # Angle to Point of Involute on Pitch Circle
-        return degrees(tan(self.max_rolling_angle) - radians(self.max_rolling_angle))
+        return degrees(tan(self.max_rolling_angle) - self.max_rolling_angle)
 
     @property
     def tooth_width(self):
