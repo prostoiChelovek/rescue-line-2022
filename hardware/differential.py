@@ -63,16 +63,21 @@ def half(is_lower: bool):
         planets_distance = sun.pitch_radius + planet_gear(True).pitch_radius 
         planets_rotation = asin(planet_gear(True).pitch_radius / planets_distance)
         planets_r = Slot(down(PLANET_GEARS_MESH_HEIGHT)(
-                                rotate((0, 0, degrees(planets_rotation * 2)))
-                                )
-                                )
+            rotate((0, 0, degrees(planets_rotation * 2)))
+            )
+            )
 
     for i, p in enumerate(planets):
+        distance_from_bot = OUT_GEARS_DISTANCE - PLANET_GEARS_MESH_HEIGHT
+        torsion_compensation = p.torsion_angle * (distance_from_bot / p.width)
+        mesh_rotation = p.mesh_rotation + torsion_compensation
         planets_r += rotate(360 / NUM_PLANETS * i)(
-                        forward(sun.pitch_radius + p.pitch_radius)(
-                            p()
-                            )
-                        )
+                forward(sun.pitch_radius + p.pitch_radius)(
+                    rotate((0, 0, mesh_rotation if not is_lower else 0))(
+                        p())
+                    )
+                )
+
     root += planets_r
 
     root += rotate((0, 0, sun.mesh_rotation))(
