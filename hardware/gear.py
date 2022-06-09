@@ -83,7 +83,7 @@ class Gear:
     @property
     def torsion_angle(self):
         # for Extrusion
-        return degrees(self.width / (self.pitch_radius * tan(degrees(90 - self.helix_angle))))
+        return degrees(self.width / (self.pitch_radius * tan(radians(90 - self.helix_angle))))
 
     @property
     def pitch_angle(self):
