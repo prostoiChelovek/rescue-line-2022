@@ -1,5 +1,6 @@
 from math import asin
 import functools
+from copy import copy, deepcopy
 
 from solid import *
 from solid.utils import * 
@@ -14,25 +15,50 @@ OUT_GEARS_DISTANCE = 22
 PLANET_GEARS_MESH_HEIGHT = 20
 NUM_PLANETS = 5
 
+GEAR_POCKET_TOLERANCE = 0.4
+
 
 def Slot(root: Optional[OpenSCADObject] = None) -> OpenSCADObject:
+    def find_root_child(root):
+        res = []
+        def _inner(el):
+            if len(el.children) > 0:
+                res.append(len(el.children) - 1)
+                _inner(el.children[-1])
+        _inner(root)
+        return res
+    def get_root_child(el, path):
+        if len(path) > 0:
+            return get_root_child(el.children[path[0]], path[1:])
+        else:
+            return el
     root = root or union()
-    add_fn = root.children[-1].add if len(root.children) > 0 else root.add
+    orig_add = root.add.__func__
+    root._child_path = find_root_child(root)
 
     @functools.wraps(root.add)
     def add(self, o: OpenSCADObjectPlus) -> OpenSCADObject:
+        print(self, o, self._child_path)
         if isinstance(o, Sequence):
             for obj in o:
                 self.add(obj)
         elif isinstance(o, OpenSCADObject):
-            add_fn(o)
+            if len(self._child_path) > 0:
+                get_root_child(self, self._child_path).add(o)
+            else:
+                orig_add(self, o)
         else:
             raise TypeError
         return self
 
+    def stack(self, slot):
+        self.add(slot)
+        self._child_path += [len(get_root_child(self, self._child_path).children)-1]
+        return self
+
     name = f"{type(root).__name__}_Slot"
     root.__class__ = type(name, (type(root),),
-                          {"add": add, "__add__": add})
+            {"add": add, "__add__": add, "stack": stack})
     return root
 
 
@@ -71,12 +97,11 @@ def half(is_lower: bool):
         distance_from_bot = OUT_GEARS_DISTANCE - PLANET_GEARS_MESH_HEIGHT
         torsion_compensation = p.torsion_angle * (distance_from_bot / p.width)
         mesh_rotation = p.mesh_rotation + torsion_compensation
-        planets_r += rotate(360 / NUM_PLANETS * i)(
-                forward(sun.pitch_radius + p.pitch_radius)(
-                    rotate((0, 0, mesh_rotation if not is_lower else 0))(
-                        p())
-                    )
-                )
+
+        transform = Slot(rotate(360 / NUM_PLANETS * i)(
+                        forward(sun.pitch_radius + p.pitch_radius)))
+
+        planets_r += transform(rotate((0, 0, mesh_rotation if not is_lower else 0))( p()))
 
     root += planets_r
 
