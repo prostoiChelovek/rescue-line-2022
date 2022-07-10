@@ -62,24 +62,26 @@ def Slot(root: Optional[OpenSCADObject] = None) -> OpenSCADObject:
     return root
 
 
-def out_gear():
+def out_gear(mock: bool):
     return Gear(modul=GEAR_MODULE, tooth_number=30,
                 width=30, bore=8,
                 pressure_angle=PRESSURE_ANGLE,
                 helix_angle=25,
-                optimized=False)
+                optimized=False,
+                mock=mock)
 
-def planet_gear():
+def planet_gear(mock: bool):
     return Gear(modul=GEAR_MODULE, tooth_number=10,
                 width=30 + PLANET_GEARS_MESH_HEIGHT, bore=8,
                 pressure_angle=PRESSURE_ANGLE,
                 helix_angle=25,
-                optimized=False)
+                optimized=False,
+                mock=mock)
 
 
-def assembly():
-    lower_sun = out_gear()
-    upper_sun = out_gear()
+def assembly(mock: bool = False):
+    lower_sun = out_gear(mock)
+    upper_sun = out_gear(mock)
     upper_sun.helix_angle *= -1
 
     upper_r = Slot(up(upper_sun.width + OUT_GEARS_DISTANCE))
@@ -88,9 +90,9 @@ def assembly():
     planets = union()
 
     for i in range(NUM_PLANETS):
-        lower_planet = planet_gear()
+        lower_planet = planet_gear(mock)
         lower_planet.helix_angle *= -1
-        upper_planet = planet_gear()
+        upper_planet = planet_gear(mock)
 
         planets_r = Slot(forward(lower_sun.pitch_radius + lower_planet.pitch_radius))
         planets_distance = upper_sun.pitch_radius + lower_planet.pitch_radius 
@@ -125,7 +127,7 @@ def assembly():
 
 
 def main():
-    return assembly()
+    return assembly(mock=False)
 
 
 if __name__ == "__main__":

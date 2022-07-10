@@ -19,14 +19,19 @@ class Gear:
     helix_angle: float
     optimized: bool
 
+    mock: bool = False
+
     def __call__(self) -> Any:
-        return gears.spur_gear(self.modul,
-                               self.tooth_number,
-                               self.width,
-                               self.bore,
-                               self.pressure_angle,
-                               self.helix_angle,
-                               self.optimized)
+        if self.mock:
+            return cylinder(h=self.width, d=self.tip_diam)
+        else:
+            return gears.spur_gear(self.modul,
+                                   self.tooth_number,
+                                   self.width,
+                                   self.bore,
+                                   self.pressure_angle,
+                                   self.helix_angle,
+                                   self.optimized)
 
     @property
     def pitch_diam(self):
@@ -101,5 +106,3 @@ class Gear:
     @property
     def mesh_rotation(self) -> float:
         return 180 / self.tooth_number * (1 if self.tooth_number % 2 == 0 else 2)
-
-
