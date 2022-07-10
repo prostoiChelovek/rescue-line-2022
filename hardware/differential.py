@@ -38,18 +38,18 @@ def Slot(root: Optional[OpenSCADObject] = None) -> OpenSCADObject:
 
     @functools.wraps(root.add)
     def add(self, o: OpenSCADObjectPlus) -> OpenSCADObject:
-        print(self, o, self._child_path)
+        new = deepcopy(self)
         if isinstance(o, Sequence):
             for obj in o:
-                self.add(obj)
+                new.add(obj)
         elif isinstance(o, OpenSCADObject):
-            if len(self._child_path) > 0:
-                get_root_child(self, self._child_path).add(o)
+            if len(new._child_path) > 0:
+                get_root_child(new, new._child_path).add(o)
             else:
-                orig_add(self, o)
+                orig_add(new, o)
         else:
             raise TypeError
-        return self
+        return new
 
     def stack(self, slot):
         self.add(slot)
@@ -58,7 +58,7 @@ def Slot(root: Optional[OpenSCADObject] = None) -> OpenSCADObject:
 
     name = f"{type(root).__name__}_Slot"
     root.__class__ = type(name, (type(root),),
-            {"add": add, "__add__": add, "stack": stack})
+            {"__call__": add, "add": add, "__add__": add, "stack": stack})
     return root
 
 
