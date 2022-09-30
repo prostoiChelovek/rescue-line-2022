@@ -6,18 +6,26 @@ use panic_probe as _;
 #[rtic::app(device = stm32f4xx_hal::pac, peripherals = true, dispatchers = [EXTI1, EXTI2, EXTI3])]
 mod app {
     use embedded_hal::digital::v2::OutputPin;
-    use rtt_target::{rtt_init_print, rprintln};
+    use rtt_target::{rtt_init_print, rprintln, rprint};
 
     use stm32f4xx_hal::{
         prelude::*, pac, pac::USART2,
+        block,
         timer, timer::{monotonic::MonoTimer, Timer},
         gpio, gpio::{
             gpioa::{PA10, PA9, PA8}, gpiob::{PB3, PB10, PB4, PB5},
             Output, PushPull, gpioc::PC7, Input, PullUp,
         },
+        i2c::I2c,
         serial, serial::{config::Config, Event, Serial}, pwm::PwmChannel,
     };
-    use fugit::{RateExtU32, HertzU32};
+    use fugit::{RateExtU32, HertzU32, Duration};
+
+    use gpio_expander::{prelude::*, GpioExpander, Pin};
+
+    use numtoa::NumToA;
+
+    use itertools::Itertools;
 
     use stepper::{Stepper, StepperDireciton};
 
@@ -62,6 +70,14 @@ mod app {
 
         let (gpioa, gpiob, gpioc) = (ctx.device.GPIOA.split(), ctx.device.GPIOB.split(), ctx.device.GPIOC.split());
 
+        let scl = gpiob.pb8.into_alternate_open_drain();
+        let sda = gpiob.pb9.into_alternate_open_drain();
+        let i2c = I2c::new(ctx.device.I2C1, (scl, sda), 200_000_u32, &clocks);
+
+        // Initializing GpioExpander with default I²C address
+        let mut expander = GpioExpander::new(i2c, None);
+        let expander_pins = expander.pins();
+
         let mut en = gpioa.pa9.into_push_pull_output();
         en.set_high();
 
@@ -101,7 +117,7 @@ mod app {
             (ch1, ch3)
         };
 
-        let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
+        //let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
 
         let rx = gpioa.pa3.into_alternate();
         let tx = gpioa.pa2.into_alternate();
@@ -114,8 +130,46 @@ mod app {
             .unwrap();
 	    serial.listen(Event::Rxne);
 
-	    let (serial_tx, serial_rx) = serial.split();
+	    let (mut serial_tx, serial_rx) = serial.split();
 
+        let pins: [Pin<_, _>; 8] = [
+            expander_pins.p04.into_input().unwrap(),
+            expander_pins.p05.into_input().unwrap(),
+            expander_pins.p06.into_input().unwrap(),
+            expander_pins.p08.into_input().unwrap(),
+            expander_pins.p07.into_input().unwrap(),
+            expander_pins.p03.into_input().unwrap(),
+            expander_pins.p02.into_input().unwrap(),
+            expander_pins.p01.into_input().unwrap(),
+        ];
+
+        let mut delay = stm32f4xx_hal::delay::Delay::new(ctx.core.SYST, &clocks);
+        loop {
+            let vals = {
+                let mut vals = [0_u16; 8];
+                for (p, v) in pins.iter().zip(vals.iter_mut()) {
+                    *v = p.get_analog().unwrap();
+                }
+                vals
+            };
+
+            /*
+            for (i, (a, b)) in vals.into_iter().tuple_windows().enumerate() {
+                rprint!("{} ", ((a as i32) - (b as i32)).abs());
+            }
+            rprintln!();
+            */
+
+            for v in vals {
+                let mut s = [0_u8; 10];
+                serial_tx.bwrite_all(v.numtoa(10, &mut s)).unwrap();
+                block!(serial_tx.write(' ' as u8)).unwrap();
+            }
+            block!(serial_tx.write('\n' as u8)).unwrap();
+            delay.delay_ms(100_u32);
+        }
+
+        /*
         //change_speed::spawn().ok();
         send_message::spawn().unwrap();
 
@@ -137,6 +191,7 @@ mod app {
             },
             init::Monotonics(mono),
         )
+            */
     }
 
     #[task(shared = [left_stepper], local = [speed, direction])]
