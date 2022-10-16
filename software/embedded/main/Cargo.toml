@@ -28,6 +28,6 @@ gpio-expander = "0.1.0"
 
 itertools = { version = "0.10.5", default-features = false}
 numtoa = "0.2.4"
+heapless = "0.7.16"
 
 stepper = { path = "../stepper" }
-interfacing = { path = "../../interfacing", default-features = false }
