@@ -5,12 +5,14 @@ use panic_probe as _;
 
 #[rtic::app(device = stm32f4xx_hal::pac, peripherals = true, dispatchers = [EXTI1, EXTI2, EXTI3])]
 mod app {
-    use embedded_hal::{digital::v2::OutputPin, blocking::i2c};
+    use core::ops;
+
+    use embedded_hal::{digital::v2::OutputPin, blocking::{i2c, delay::DelayMs}};
     use rtt_target::{rtt_init_print, rprintln, rprint};
 
     use stm32f4xx_hal::{
         prelude::*, pac, pac::USART2,
-        block,
+        block, delay::Delay,
         timer, timer::{monotonic::MonoTimer, Timer},
         gpio, gpio::{
             gpioa::{PA10, PA9, PA8}, gpiob::{PB3, PB10, PB4, PB5},
@@ -39,8 +41,18 @@ mod app {
          gpiob::PB9<gpio::Alternate<gpio::OpenDrain, 4>>),
          >;
 
+    pub fn std_dev(vals: impl ExactSizeIterator<Item = u16> + Clone) -> u32 {
+        let len = vals.len();
+        let mean = vals.clone().sum::<u16>() / len as u16;
+        vals
+            .map(|x| ((x as i32 - mean as i32).pow(2)) as u32)
+            .sum::<u32>() / len as u32
+    }
+
     pub struct LineSensor<BUS: i2c::Write + i2c::WriteRead> {
-        bus: BUS
+        bus: BUS,
+        sens: u8,
+        correction: [i32; 8]
     }
 
     impl<BUS, E> LineSensor<BUS>
@@ -48,20 +60,51 @@ mod app {
         BUS: i2c::Write<Error = E> + i2c::WriteRead<Error = E>,
         E: core::fmt::Debug
     {
+        pub fn new(bus: BUS) -> Self {
+            let mut res = Self {
+                bus,
+                sens: 0,
+                correction: [0; 8]
+            };
+
+            // TODO: not the best practive to do this in constructor
+            res.into_output(0); // sens
+            res.into_output(9); // IR leds
+            for pin in 1..=8 {
+                res.into_input(pin);
+            }
+            res.digital_write(9, true); // enable the IR leds
+
+            res
+        }
+
         fn map_pin(pin: u8) -> u8 {
             // who the fuck came up with this shit numbering scheme
-            [4, 5, 6, 8, 7, 3, 2, 1][pin as usize - 1]
+            [0, 4, 5, 6, 8, 7, 3, 2, 1, 9][pin as usize]
         }
 
         pub fn into_input(&mut self, pin: u8) {
             let pin = Self::map_pin(pin);
 
             let raw_pin_num = (1u16 << pin as u16).to_be_bytes();
-
             self.bus.write(
                 0x2a,
                 &[
                 0x04,
+                raw_pin_num[0],
+                raw_pin_num[1],
+                ],
+                ).unwrap();
+        }
+
+        pub fn into_output(&mut self, pin: u8) {
+            let pin = Self::map_pin(pin);
+
+            let raw_pin_num = (1u16 << pin as u16).to_be_bytes();
+            self.bus.write(
+                0x2a,
+                &[
+                0x07,
                 raw_pin_num[0],
                 raw_pin_num[1],
                 ],
@@ -86,6 +129,77 @@ mod app {
             //       previously requested pin
             inner();
             inner()
+        }
+
+        pub fn analog_write(&mut self, pin: u8, val: u16) {
+            let raw_value: [u8; 2] = val.to_be_bytes();
+
+            self.bus.write(
+                0x2a,
+                &[
+                0x0B,
+                pin,
+                raw_value[0],
+                raw_value[1],
+                ],
+                ).unwrap();
+        }
+
+        pub fn digital_write(&mut self, pin: u8, val: bool) {
+            let raw_pin_num = (1u16 << pin as u16).to_be_bytes();
+
+            self.bus.write(
+                0x2a,
+                &[
+                if val { 0x09 } else { 0x0A },
+                raw_pin_num[0],
+                raw_pin_num[1],
+                ],
+                ).unwrap();
+        }
+
+
+        pub fn set_sens(&mut self, sens: u8) {
+            self.sens = sens;
+            self.analog_write(0, sens as u16);
+        }
+
+        pub fn read(&mut self) -> [u16; 8] {
+            let mut vals = [0_u16; 8];
+            for ((p, v), c) in (1..=8).into_iter().zip(vals.iter_mut()).zip(self.correction) {
+                *v = ((self.analog_read(p) as i32) + c as i32) as u16;
+            }
+            vals
+        }
+
+        pub fn calibrate(&mut self, delay: &mut impl DelayMs<u16>) {
+            const NUM_SAMPLES: usize = 20;
+
+            let vals = self.read();
+            rprintln!("Before calibration: corr={:?} vals={:?}", self.correction, vals);
+
+            let mut samples = [[0_u16; NUM_SAMPLES]; 8];
+            for i in 0..NUM_SAMPLES {
+                let vals = self.read();
+                vals
+                    .iter()
+                    .zip(samples
+                         .iter_mut())
+                    .for_each(|(&val, s)| s[i] = val);
+                delay.delay_ms(25);
+            }
+            let vals_averaged = samples
+                .map(|vals| vals
+                             .into_iter()
+                             .map_into::<u32>()
+                             .sum::<u32>() / vals.len() as u32);
+            let mean = vals_averaged
+                        .into_iter()
+                        .sum::<u32>() / vals_averaged.len() as u32;
+            self.correction = vals_averaged.map(|x| mean as i32 - x as i32);
+
+            let vals = self.read();
+            rprintln!("After calibration: corr={:?} vals{:?} mean={}", self.correction, vals, mean);
         }
     }
 
@@ -115,15 +229,15 @@ mod app {
 
         let (gpioa, gpiob, gpioc) = (ctx.device.GPIOA.split(), ctx.device.GPIOB.split(), ctx.device.GPIOC.split());
 
+        let mut delay = Delay::new(ctx.core.SYST, &clocks);
+
         let scl = gpiob.pb8.into_alternate_open_drain();
         let sda = gpiob.pb9.into_alternate_open_drain();
         let i2c = I2c::new(ctx.device.I2C1, (scl, sda), 400_000_u32, &clocks);
 
         let line_sensor = {
-            let mut s = LineSensor { bus: i2c };
-            for pin in 1..=8 {
-                s.into_input(pin);
-            }
+            let mut s = LineSensor::new(i2c);
+            s.calibrate(&mut delay);
             s
         };
 
@@ -177,13 +291,7 @@ mod app {
 
     #[task(local = [line_sensor], shared = [serial_tx])]
     fn line(mut cx: line::Context) {
-        let vals = {
-            let mut vals = [0_u16; 8];
-            for (p, v) in (1..=8).into_iter().zip(vals.iter_mut()) {
-                *v = cx.local.line_sensor.analog_read(p);
-            }
-            vals
-        };
+        let vals = cx.local.line_sensor.read();
 
         let line = {
             let d = vals
@@ -193,7 +301,7 @@ mod app {
             let mean = d.clone().sum::<u16>() / (vals.len() - (vals.len() % 2)) as u16;
 
             d.clone().for_each(|x| rprint!("{} ", x));
-            rprintln!("{}", mean);
+            // rprintln!("{}", mean);
 
             let mut r = [false; 7];
             d
@@ -204,10 +312,9 @@ mod app {
         };
 
         for x in line {
-            rprint!("{} ", x);
+            // rprint!("{} ", x);
         }
-        rprintln!();
-
+         rprintln!();
 
         cx.shared.serial_tx.lock(|tx| {
             for v in vals {
