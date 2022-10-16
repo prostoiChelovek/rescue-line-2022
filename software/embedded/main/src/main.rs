@@ -32,6 +32,8 @@ mod app {
 
     use stepper::{Stepper, StepperDireciton};
 
+    const NUM_SENSORS: usize = 6;
+
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
 
@@ -52,7 +54,7 @@ mod app {
     pub struct LineSensor<BUS: i2c::Write + i2c::WriteRead> {
         bus: BUS,
         sens: u8,
-        correction: [i32; 8]
+        correction: [i32; NUM_SENSORS]
     }
 
     impl<BUS, E> LineSensor<BUS>
@@ -64,7 +66,8 @@ mod app {
             let mut res = Self {
                 bus,
                 sens: 0,
-                correction: [0; 8]
+                correction: [0; NUM_SENSORS]
+
             };
 
             // TODO: not the best practive to do this in constructor
@@ -164,9 +167,11 @@ mod app {
             self.analog_write(0, sens as u16);
         }
 
-        pub fn read(&mut self) -> [u16; 8] {
-            let mut vals = [0_u16; 8];
-            for ((p, v), c) in (1..=8).into_iter().zip(vals.iter_mut()).zip(self.correction) {
+        pub fn read(&mut self) -> [u16; NUM_SENSORS] {
+            const START: u8 = (8 - NUM_SENSORS as u8) / 2 + 1;
+            const END: u8 = START + NUM_SENSORS as u8;
+            let mut vals = [0_u16; NUM_SENSORS];
+            for ((p, v), c) in (START..END).into_iter().zip(vals.iter_mut()).zip(self.correction) {
                 *v = ((self.analog_read(p) as i32) + c as i32) as u16;
             }
             vals
@@ -178,7 +183,7 @@ mod app {
             let vals = self.read();
             rprintln!("Before calibration: corr={:?} vals={:?}", self.correction, vals);
 
-            let mut samples = [[0_u16; NUM_SAMPLES]; 8];
+            let mut samples = [[0_u16; NUM_SAMPLES]; NUM_SENSORS];
             for i in 0..NUM_SAMPLES {
                 let vals = self.read();
                 vals
@@ -293,32 +298,27 @@ mod app {
     fn line(mut cx: line::Context) {
         let vals = cx.local.line_sensor.read();
 
-        let line = {
-            let d = vals
-                .into_iter()
-                .tuple_windows()
-                .map(|(a, b)| ((a as i32) - (b as i32)).abs() as u16);
-            let mean = d.clone().sum::<u16>() / (vals.len() - (vals.len() % 2)) as u16;
+        let d = vals
+            .into_iter()
+            .tuple_windows()
+            .map(|(a, b)| (b as i32) - (a as i32));
+        let mean = d.clone().sum::<i32>() / vals.len() as i32;
 
-            d.clone().for_each(|x| rprint!("{} ", x));
-            // rprintln!("{}", mean);
+        d.clone().for_each(|x| rprint!("{} ", x));
+        // rprintln!("{}", mean);
 
-            let mut r = [false; 7];
-            d
-                .map(|x| x > mean)
-                .zip(r.iter_mut())
-                .for_each(|(x, v)| *v = x);
-            r
-        };
+        let mut r = [false; NUM_SENSORS - 2];
+        d
+            .clone()
+            .map(|x| x > mean)
+            .zip(r.iter_mut())
+            .for_each(|(x, v)| *v = x);
 
-        for x in line {
-            // rprint!("{} ", x);
-        }
-         rprintln!();
+        rprintln!();
 
         cx.shared.serial_tx.lock(|tx| {
-            for v in vals {
-                let mut s = [0_u8; 10];
+            for v in d {
+                let mut s = [0_u8; 11];
                 tx.bwrite_all(v.numtoa(10, &mut s)).unwrap();
                 block!(tx.write(' ' as u8)).unwrap();
             }
