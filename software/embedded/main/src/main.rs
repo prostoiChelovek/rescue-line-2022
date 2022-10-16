@@ -1,5 +1,6 @@
 #![no_main]
 #![no_std]
+#![feature(let_chains)]
 
 use panic_probe as _;
 
@@ -33,6 +34,8 @@ mod app {
     use stepper::{Stepper, StepperDireciton};
 
     const NUM_SENSORS: usize = 6;
+
+    const EDGE_THRESHOLD: u16 = 110;
 
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
@@ -298,26 +301,52 @@ mod app {
     fn line(mut cx: line::Context) {
         let vals = cx.local.line_sensor.read();
 
-        let d = vals
-            .into_iter()
-            .tuple_windows()
-            .map(|(a, b)| (b as i32) - (a as i32));
-        let mean = d.clone().sum::<i32>() / vals.len() as i32;
+        let derivative = {
+            let mut r = [0_i32; NUM_SENSORS - 1];
+            vals
+                .into_iter()
+                .tuple_windows()
+                .map(|(a, b)| (b as i32) - (a as i32))
+                .zip(r.iter_mut())
+                .for_each(|(x, v)| *v = x);
+            r
+        };
 
-        d.clone().for_each(|x| rprint!("{} ", x));
-        // rprintln!("{}", mean);
+        let flip_idx = derivative
+                        .into_iter()
+                        .tuple_windows()
+                        .map(|(a, b)| (a > 0) != (b > 0))
+                        .enumerate()
+                        .find(|(_, x)| *x)
+                        .and_then(|(i, _)| Some(i));
 
-        let mut r = [false; NUM_SENSORS - 2];
-        d
-            .clone()
-            .map(|x| x > mean)
-            .zip(r.iter_mut())
-            .for_each(|(x, v)| *v = x);
-
-        rprintln!();
+        if let Some(flip_idx) = flip_idx {
+            let left = {
+                derivative[0..=flip_idx]
+                    .into_iter()
+                    .map(|x| x.abs())
+                    .enumerate()
+                    .filter(|(_, x)| *x > EDGE_THRESHOLD as i32)
+                    .max_by_key(|(_, x)| *x)
+                    .and_then(|(i, _)| Some(i))
+            };
+            let right = {
+                derivative[flip_idx+1..]
+                    .into_iter()
+                    .map(|x| x.abs())
+                    .enumerate()
+                    .filter(|(_, x)| *x > EDGE_THRESHOLD as i32)
+                    .max_by_key(|(_, x)| *x)
+                    .and_then(|(i, _)| Some(i + flip_idx + 1))
+            };
+            // TODO: convert derivative index to mm
+            if let Some(left) = left && let Some(right) = right {
+                rprintln!("Line: {} {}", left, right);
+            }
+        }
 
         cx.shared.serial_tx.lock(|tx| {
-            for v in d {
+            for v in derivative {
                 let mut s = [0_u8; 11];
                 tx.bwrite_all(v.numtoa(10, &mut s)).unwrap();
                 block!(tx.write(' ' as u8)).unwrap();
