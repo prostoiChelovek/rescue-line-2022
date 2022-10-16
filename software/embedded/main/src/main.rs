@@ -21,8 +21,6 @@ mod app {
     };
     use fugit::{RateExtU32, HertzU32, Duration};
 
-    use gpio_expander::{prelude::*, GpioExpander, Pin};
-
     use numtoa::NumToA;
 
     use heapless::Vec;
@@ -44,9 +42,9 @@ mod app {
     }
 
     #[local]
-    struct Local {
+    struct Local<'a> {
         speed: HertzU32,
-        direction: StepperDireciton
+        direction: StepperDireciton,
     }
 
     #[init]
@@ -62,9 +60,6 @@ mod app {
         let scl = gpiob.pb8.into_alternate_open_drain();
         let sda = gpiob.pb9.into_alternate_open_drain();
         let i2c = I2c::new(ctx.device.I2C1, (scl, sda), 400_000_u32, &clocks);
-
-        let mut expander = GpioExpander::new(i2c, None);
-        let expander_pins = expander.pins();
 
         let mut en = gpioa.pa9.into_push_pull_output();
         en.set_high();
@@ -88,70 +83,15 @@ mod app {
         let mut serial = Serial::<_, _, u8>::new(
             ctx.device.USART2,
             (tx, rx),
-            Config::default().baudrate(interfacing::BAUD_RATE.bps()),
+            Config::default().baudrate(1_000_000_u32.bps()),
             &clocks,
             )
             .unwrap();
 	    serial.listen(Event::Rxne);
 
-	    let (mut serial_tx, serial_rx) = serial.split();
+	    let (serial_tx, serial_rx) = serial.split();
 
-        let pins: [Pin<_, _>; 8] = [
-            expander_pins.p01.into_input().unwrap(),
-            expander_pins.p02.into_input().unwrap(),
-            expander_pins.p02.into_input().unwrap(),
-            expander_pins.p02.into_input().unwrap(),
-            expander_pins.p02.into_input().unwrap(),
-            expander_pins.p02.into_input().unwrap(),
-            expander_pins.p02.into_input().unwrap(),
-            expander_pins.p02.into_input().unwrap(),
-        ];
-
-        let mut delay = stm32f4xx_hal::delay::Delay::new(ctx.core.SYST, &clocks);
-        loop {
-            let vals = {
-                let mut vals = [0_u16; 8];
-                for (p, v) in pins.iter().zip(vals.iter_mut()) {
-                    *v = p.get_analog().unwrap();
-                }
-                vals
-            };
-
-
-            let line = {
-                let d = vals
-                    .into_iter()
-                    .tuple_windows()
-                    .map(|(a, b)| ((a as i32) - (b as i32)).abs() as u16);
-                let mean = d.clone().sum::<u16>() / (vals.len() - (vals.len() % 2)) as u16;
-
-                d.clone().for_each(|x| rprint!("{} ", x));
-                rprintln!("{}", mean);
-
-                let mut r = [false; 7];
-                d
-                    .map(|x| x > mean)
-                    .zip(r.iter_mut())
-                    .for_each(|(x, v)| *v = x);
-                r
-            };
-
-            for x in line {
-                rprint!("{} ", x);
-            }
-            rprintln!();
-
-            for v in vals {
-                let mut s = [0_u8; 10];
-                serial_tx.bwrite_all(v.numtoa(10, &mut s)).unwrap();
-                block!(serial_tx.write(' ' as u8)).unwrap();
-            }
-            block!(serial_tx.write('\n' as u8)).unwrap();
-
-            delay.delay_ms(100_u32);
-        }
-
-        //change_speed::spawn().ok();
+        line::spawn().ok();
 
         (
             Shared {
@@ -166,6 +106,50 @@ mod app {
             },
             init::Monotonics(mono),
         )
+    }
+
+    #[task(shared = [serial_tx])]
+    fn line(mut cx: line::Context) {
+        let vals = {
+            let mut vals = [0_u16; 8];
+            // TODO
+            vals
+        };
+
+        let line = {
+            let d = vals
+                .into_iter()
+                .tuple_windows()
+                .map(|(a, b)| ((a as i32) - (b as i32)).abs() as u16);
+            let mean = d.clone().sum::<u16>() / (vals.len() - (vals.len() % 2)) as u16;
+
+            d.clone().for_each(|x| rprint!("{} ", x));
+            rprintln!("{}", mean);
+
+            let mut r = [false; 7];
+            d
+                .map(|x| x > mean)
+                .zip(r.iter_mut())
+                .for_each(|(x, v)| *v = x);
+            r
+        };
+
+        for x in line {
+            rprint!("{} ", x);
+        }
+        rprintln!();
+
+
+        cx.shared.serial_tx.lock(|tx| {
+            for v in vals {
+                let mut s = [0_u8; 10];
+                tx.bwrite_all(v.numtoa(10, &mut s)).unwrap();
+                block!(tx.write(' ' as u8)).unwrap();
+            }
+            block!(tx.write('\n' as u8)).unwrap();
+        });
+
+        line::spawn_after(100_u32.micros()).ok();
     }
 
     #[task(shared = [platform_stepper], priority = 15)]
