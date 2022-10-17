@@ -28,6 +28,7 @@ mod app {
     use numtoa::NumToA;
 
     use heapless::Vec;
+    use array_init::from_iter;
 
     use itertools::Itertools;
 
@@ -173,10 +174,12 @@ mod app {
         pub fn read(&mut self) -> [u16; NUM_SENSORS] {
             const START: u8 = (8 - NUM_SENSORS as u8) / 2 + 1;
             const END: u8 = START + NUM_SENSORS as u8;
-            let mut vals = [0_u16; NUM_SENSORS];
-            for ((p, v), c) in (START..END).into_iter().zip(vals.iter_mut()).zip(self.correction) {
-                *v = ((self.analog_read(p) as i32) + c as i32) as u16;
-            }
+            debug_assert_eq!(END - START, NUM_SENSORS as u8);
+            let vals: [u16; NUM_SENSORS] = unsafe { from_iter((START..END)
+                                                              .into_iter()
+                                                              .zip(self.correction)
+                                                              .map(|(p, c)| ((self.analog_read(p) as i32) + c as i32) as u16))
+                                                        .unwrap_unchecked() };
             vals
         }
 
@@ -299,18 +302,13 @@ mod app {
 
     #[task(local = [line_sensor], shared = [serial_tx])]
     fn line(mut cx: line::Context) {
-        let vals = cx.local.line_sensor.read();
+        let vals: [_; NUM_SENSORS] = cx.local.line_sensor.read();
 
-        let derivative = {
-            let mut r = [0_i32; NUM_SENSORS - 1];
-            vals
-                .into_iter()
-                .tuple_windows()
-                .map(|(a, b)| (b as i32) - (a as i32))
-                .zip(r.iter_mut())
-                .for_each(|(x, v)| *v = x);
-            r
-        };
+        let derivative: [i32; NUM_SENSORS - 1] = unsafe { from_iter(vals
+                                                                    .into_iter()
+                                                                    .tuple_windows()
+                                                                    .map(|(a, b)| (b as i32) - (a as i32)))
+                                                              .unwrap_unchecked() };
 
         let flip_idx = derivative
                         .into_iter()
