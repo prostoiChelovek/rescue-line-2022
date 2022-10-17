@@ -313,7 +313,9 @@ mod app {
         let flip_idx = derivative
                         .into_iter()
                         .tuple_windows()
-                        .map(|(a, b)| (a > 0) != (b > 0))
+                        .map(|(a, b)| ((a > 0) != (b > 0)) 
+                                         && a.abs() > EDGE_THRESHOLD as i32 
+                                         && b.abs() > EDGE_THRESHOLD as i32)
                         .enumerate()
                         .find(|(_, x)| *x)
                         .and_then(|(i, _)| Some(i));
@@ -322,29 +324,32 @@ mod app {
             let left = {
                 derivative[0..=flip_idx]
                     .into_iter()
-                    .map(|x| x.abs())
                     .enumerate()
-                    .filter(|(_, x)| *x > EDGE_THRESHOLD as i32)
-                    .max_by_key(|(_, x)| *x)
-                    .and_then(|(i, _)| Some(i))
+                    .filter(|(_, x)| x.abs() > EDGE_THRESHOLD as i32)
+                    .max_by_key(|(_, x)| x.abs())
+                    .and_then(|(i, &x)| Some(i + (x > 0) as usize))
             };
             let right = {
                 derivative[flip_idx+1..]
                     .into_iter()
-                    .map(|x| x.abs())
                     .enumerate()
-                    .filter(|(_, x)| *x > EDGE_THRESHOLD as i32)
-                    .max_by_key(|(_, x)| *x)
-                    .and_then(|(i, _)| Some(i + flip_idx + 1))
+                    .filter(|(_, x)| x.abs() > EDGE_THRESHOLD as i32)
+                    .max_by_key(|(_, x)| x.abs())
+                    .and_then(|(i, &x)| Some(i + flip_idx + 1 + (x > 0) as usize))
             };
             // TODO: convert derivative index to mm
-            if let Some(left) = left && let Some(right) = right {
-                rprintln!("Line: {} {}", left, right);
+            if left.is_some() || right.is_some() {
+                rprintln!("Line: {:?} {:?}", left, right);
             }
         }
 
         cx.shared.serial_tx.lock(|tx| {
             for v in derivative {
+                let mut s = [0_u8; 11];
+                tx.bwrite_all(v.numtoa(10, &mut s)).unwrap();
+                block!(tx.write(' ' as u8)).unwrap();
+            }
+            for v in vals {
                 let mut s = [0_u8; 11];
                 tx.bwrite_all(v.numtoa(10, &mut s)).unwrap();
                 block!(tx.write(' ' as u8)).unwrap();
