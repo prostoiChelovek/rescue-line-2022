@@ -310,37 +310,26 @@ mod app {
                                                                     .map(|(a, b)| (b as i32) - (a as i32)))
                                                               .unwrap_unchecked() };
 
-        let flip_idx = derivative
-                        .into_iter()
-                        .tuple_windows()
-                        .map(|(a, b)| ((a > 0) != (b > 0)) 
-                                         && a.abs() > EDGE_THRESHOLD as i32 
-                                         && b.abs() > EDGE_THRESHOLD as i32)
-                        .enumerate()
-                        .find(|(_, x)| *x)
-                        .and_then(|(i, _)| Some(i));
+        let line = {
+            let derivative_th = derivative
+                .into_iter()
+                .enumerate()
+                .filter(|(_, x)| x.abs() > EDGE_THRESHOLD as i32);
+            let first_edge = derivative_th.clone().max_by_key(|(_, x)| *x);
+            (
+                first_edge.and_then(|(i, _)| Some(i)),
+                first_edge.and_then(|(_, first_val)|
+                                    derivative_th
+                                        .clone()
+                                        .filter(|(_, x)| (*x > 0) != (first_val > 0))
+                                        .min_by_key(|(_, x)| *x)
+                                        .and_then(|(i, _)| Some(i)))
+            )
+        };
 
-        if let Some(flip_idx) = flip_idx {
-            let left = {
-                derivative[0..=flip_idx]
-                    .into_iter()
-                    .enumerate()
-                    .filter(|(_, x)| x.abs() > EDGE_THRESHOLD as i32)
-                    .max_by_key(|(_, x)| x.abs())
-                    .and_then(|(i, &x)| Some(i + (x > 0) as usize))
-            };
-            let right = {
-                derivative[flip_idx+1..]
-                    .into_iter()
-                    .enumerate()
-                    .filter(|(_, x)| x.abs() > EDGE_THRESHOLD as i32)
-                    .max_by_key(|(_, x)| x.abs())
-                    .and_then(|(i, &x)| Some(i + flip_idx + 1 + (x > 0) as usize))
-            };
-            // TODO: convert derivative index to mm
-            if left.is_some() || right.is_some() {
-                rprintln!("Line: {:?} {:?}", left, right);
-            }
+        // TODO: convert derivative index to mm
+        if line.0.is_some() || line.1.is_some() {
+            rprintln!("Line: {:?}", line);
         }
 
         cx.shared.serial_tx.lock(|tx| {
