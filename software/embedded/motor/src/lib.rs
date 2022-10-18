@@ -5,7 +5,7 @@ use num_traits::{Zero, NumCast};
 
 use core::{cmp::Ordering::{Less, Equal, Greater}, intrinsics::transmute};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RotationDirection {
     Clockwise,
     Counterclockwise,

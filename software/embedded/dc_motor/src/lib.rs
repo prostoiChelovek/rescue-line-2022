@@ -1,70 +1,95 @@
 #![no_std]
 
-#![feature(convert_float_to_int)]
+#![feature(trait_alias)]
 
-use core::convert::FloatToInt;
+use core::ops::{Add, Sub, Mul, Div};
 
 use embedded_hal::{
-    digital::v2::{OutputPin, PinState},
+    digital::v2::OutputPin,
     PwmPin,
 };
 
 use motor::{RotationDirection, SetSpeed, GetSpeed, SetDirection};
 
-pub struct PwmSetSpeed<P>
-where
-    P: PwmPin,
-    P::Duty: From<u8>
-{
-    pin: P,
-    pub min_speed: u8,
+pub trait NumOps<T: Sized> = Add<T, Output = T> 
+                                + Sub<T, Output = T> 
+                                + Div<T, Output = T> 
+                                + Mul<T, Output = T>;
 
-    current_speed: u8
+
+fn map_range<T: Copy + NumOps<T>>(from_range: (T, T), to_range: (T, T), s: T) -> T 
+{
+    to_range.0 + (s - from_range.0) * (to_range.1 - to_range.0) / (from_range.1 - from_range.0)
 }
 
-impl<P> PwmSetSpeed<P>
+pub struct TwoWirteDriver<PWM, DIR>
 where
-    P: PwmPin,
-    P::Duty: From<u8>
+    PWM: PwmPin,
+    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty>,
+    DIR: OutputPin
 {
-    pub fn new(pin: P, min_speed: u8) -> Self {
-        let mut pin = pin;
-        pin.enable();
+    speed_pin: PWM,
+    dir_pin: DIR,
+
+    current_speed: u8,
+    current_direction: RotationDirection,
+
+    pub min_speed: u8,
+}
+
+
+impl<PWM, DIR> TwoWirteDriver<PWM, DIR>
+where
+    PWM: PwmPin,
+    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty>,
+    DIR: OutputPin
+{
+    pub fn new(mut pwm: PWM, dir: DIR, min_speed: u8) -> Self {
+        pwm.enable();
 
         Self {
-            pin, min_speed,
-            current_speed: 0
+            speed_pin: pwm,
+            dir_pin: dir,
+            min_speed,
+            current_speed: 0,
+            current_direction: RotationDirection::Clockwise
         }
     }
 }
 
-impl<P: PwmPin> SetSpeed for PwmSetSpeed<P> 
+impl<PWM, DIR> SetSpeed for TwoWirteDriver<PWM, DIR>
 where
-    P: PwmPin,
-    P::Duty: From<u8> + Into<f32>,
-    f32: FloatToInt<P::Duty>
+    PWM: PwmPin,
+    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty>,
+    DIR: OutputPin
 {
     type Speed = u8;
 
     fn set_speed(&mut self, speed: Self::Speed) {
         self.current_speed = speed.min(100);
-        let speed = speed + self.min_speed;
-        let speed = speed.max(0).min(100);
-        let speed: f32 = speed.into();
+        let duty = {
+            let duty: PWM::Duty = map_range(
+                (1_u8.into(), 100_u8.into()),
+                (self.min_speed.into(), self.speed_pin.get_max_duty()),
+                self.current_speed.into()); 
+            if self.current_direction == RotationDirection::Clockwise {
+                self.speed_pin.get_max_duty() - duty
+            }
+            else {
+                duty
+            }
+        };
 
-        let max_duty: f32 = self.pin.get_max_duty().into();
-        let duty = max_duty * speed / 100_f32;
-        let duty = unsafe { duty.to_int_unchecked::<P::Duty>() };
-
-        self.pin.set_duty(duty);
+        self.speed_pin.set_duty(duty);
     }
 }
 
 
-impl<P: PwmPin> GetSpeed for PwmSetSpeed<P> 
+impl<PWM, DIR> GetSpeed for TwoWirteDriver<PWM, DIR>
 where
-    P: PwmPin,
-    P::Duty: From<u8>,
+    PWM: PwmPin,
+    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty>,
+    DIR: OutputPin
 {
     type Speed = u8;
 
@@ -73,44 +98,21 @@ where
     }
 }
 
-pub struct TwoPinSetDirection<F, B>
+impl<PWM, DIR> SetDirection for TwoWirteDriver<PWM, DIR>
 where
-    F: OutputPin,
-    B: OutputPin,
-{
-    fwd: F,
-    back: B
-}
-
-impl<F, B> TwoPinSetDirection<F, B> 
-where
-    F: OutputPin,
-    B: OutputPin,
-{
-    pub fn new(fwd_pin: F, back_pin: B) -> Self {
-        TwoPinSetDirection {
-            fwd: fwd_pin,
-            back: back_pin,
-        }
-    }
-
-    fn set_outs(&mut self, fwd: bool, back: bool) {
-        self.fwd.set_state(PinState::from(fwd)).ok();
-        self.back.set_state(PinState::from(back)).ok();
-    }
-}
-
-impl<F, B> SetDirection for TwoPinSetDirection<F, B> 
-where
-    F: OutputPin,
-    B: OutputPin,
+    PWM: PwmPin,
+    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty>,
+    DIR: OutputPin
 {
     fn set_direction(&mut self, direction: RotationDirection) {
+        self.current_direction = direction;
         match direction {
-            RotationDirection::Clockwise => { self.set_outs(true, false) },
-            RotationDirection::Counterclockwise => { self.set_outs(false, true) },
-            RotationDirection::None => { self.set_outs(false, false) },
-        }
+            RotationDirection::Clockwise => { self.dir_pin.set_high().ok(); },
+            RotationDirection::Counterclockwise => { self.dir_pin.set_low().ok(); },
+            RotationDirection::None => { },
+        };
+        // the pwm value depends on direction
+        self.set_speed(self.current_speed);
     }
 }
 
