@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name = "rotary_encoder"
+version = "0.1.0"
+
+[dependencies]
+num-traits = { version = "0.2", default-features = false }
+embedded-hal = "0.2"
+
+encoder = { path = "../encoder" }
+

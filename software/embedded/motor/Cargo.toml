@@ -1,0 +1,9 @@
+[package]
+edition = "2021"
+name = "motor"
+version = "0.1.0"
+
+[dependencies]
+num-traits = { version = "0.2", default-features = false }
+compare = "0.1.0"
+

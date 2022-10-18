@@ -30,3 +30,9 @@ heapless = "0.7.16"
 array-init = "2.0.1"
 
 stepper = { path = "../stepper" }
+motor = { path = "../motor" }
+dc_motor = { path = "../dc_motor" }
+encoder = { path = "../encoder" }
+rotary_encoder = { path = "../rotary_encoder" }
+wheel = { path = "../wheel" }
+servo = { path = "../servo" }

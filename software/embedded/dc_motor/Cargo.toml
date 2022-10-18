@@ -1,0 +1,12 @@
+[package]
+edition = "2021"
+name = "dc_motor"
+version = "0.1.0"
+
+[dependencies]
+embedded-hal = "0.2"
+
+num-traits = { version = "0.2", default-features = false }
+
+motor = { path = "../motor" }
+

@@ -1,7 +1,13 @@
 [workspace]
 members = [
     "stepper",
-    "main"
+    "main",
+    "motor",
+    "dc_motor",
+    "encoder",
+    "rotary_encoder",
+    "wheel",
+    "servo",
 ]
 
 [profile.dev]
