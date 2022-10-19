@@ -6,6 +6,29 @@ use panic_probe as _;
 
 mod line_sensor;
 
+macro_rules! wheel_alias {
+    ($name:ident, $dir_1_pin:ident, $dir_2_pin:ident, $pwm_timer:ident, $pwm_chan:ident, $qei_pin_1:ident, $qei_pin_2:ident, $qei_tim:ident, $qei_af:literal) => {
+        mod $name {
+            use super::*;
+
+            type _DriverT = TwoWirteDriver<PwmChannel<$pwm_timer, $pwm_chan>,
+                                           $dir_1_pin<OutPP>>;
+
+            mod _encoder {
+                use super::*;
+
+                type EncoderPinMode = Alternate<PushPull, $qei_af>;
+                type QeiT = Qei<$qei_tim, ($qei_pin_1<EncoderPinMode>, $qei_pin_2<EncoderPinMode>)>;
+                pub type Encoder = RotaryEncoder<QeiT>;
+            }
+
+            pub type WheelT = Wheel<_DriverT, _encoder::Encoder>;
+
+            pub use _encoder::Encoder as EncoderT;
+        }
+    };
+}
+
 #[rtic::app(device = stm32f4xx_hal::pac, peripherals = true, dispatchers = [EXTI1, EXTI2, EXTI3])]
 mod app {
     use core::ops;
@@ -14,33 +37,49 @@ mod app {
     use rtt_target::{rtt_init_print, rprintln, rprint};
 
     use stm32f4xx_hal::{
-        prelude::*, pac, pac::USART2,
+        prelude::*, pac, pac::{USART2, TIM1, TIM3, TIM5},
         block, delay::Delay,
         timer, timer::{monotonic::MonoTimer, Timer},
         gpio, gpio::{
-            gpioa::{PA10, PA9, PA8}, gpiob::{PB3, PB10, PB4, PB5},
+            gpioa::{PA0, PA1, PA9, PA8},
+            gpiob::{PB3, PB10, PB4, PB5, PB6},
+            gpioc::{PC7, PC8},
             gpiob,
-            Output, PushPull, gpioc::PC7, Input, PullUp,
+            Output, PushPull, Input, PullUp, Alternate
         },
         i2c::I2c,
-        serial, serial::{config::Config, Event, Serial}, pwm::PwmChannel,
+        serial, serial::{config::Config, Event, Serial},
+        pwm::{PwmChannel, C1, C2},
+        qei::Qei
     };
+
     use fugit::{RateExtU32, HertzU32, Duration};
-
     use numtoa::NumToA;
-
     use array_init::from_iter;
-
     use itertools::Itertools;
 
+    use pid::Pid;
+
     use stepper::{Stepper, StepperDireciton};
+    use rotary_encoder::RotaryEncoder;
+    use dc_motor::TwoWirteDriver;
+    use wheel::Wheel;
 
     use crate::line_sensor::{LineSensor, NUM_SENSORS};
 
     const EDGE_THRESHOLD: u16 = 110;
+    const WHEEL_MIN_DUTY: u8 = 100;
+    const WHEEL_ENCODER_PPR: f32 = 48.0;
+    const WHEEL_MAX_ROTARY_SPEED: f32 = 100.0;
+    const WHEEL_RADIUS: f32 = 100.0;
 
     #[monotonic(binds = TIM2, default = true)]
     type MicrosecMono = MonoTimer<pac::TIM2, 1_000_000>;
+
+    type OutPP = Output<PushPull>;
+
+    wheel_alias!(left_wheel, PB10, PB3, TIM1, C1, PB4, PB5, TIM3, 2_u8);
+    wheel_alias!(right_wheel, PC7, PB6, TIM1, C2, PA0, PA1, TIM5, 2_u8);
 
     type I2cType = I2c<
         pac::I2C1,
@@ -58,9 +97,9 @@ mod app {
 
     #[shared]
     struct Shared {
-        platform_stepper: Stepper<PB5<Output<PushPull>>, PA8<Output<PushPull>>>,
-        platform_limit: PC7<Input<PullUp>>,
-        enable_pin: PA9<Output<PushPull>>,
+        left: left_wheel::WheelT,
+        right: right_wheel::WheelT,
+
         serial_tx: serial::Tx<USART2>,
         serial_rx: serial::Rx<USART2>,
     }
@@ -94,6 +133,7 @@ mod app {
             s
         };
 
+        /*
         let mut en = gpioa.pa9.into_push_pull_output();
         en.set_high();
 
@@ -104,12 +144,49 @@ mod app {
             stepper
         };
 
-        let mut platform_limit = gpioc.pc7.into_pull_up_input();
+        let mut platform_limit = gpioc.pc8.into_pull_up_input();
         platform_limit.make_interrupt_source(&mut syscfg);
         platform_limit.enable_interrupt(&mut ctx.device.EXTI);
         platform_limit.trigger_on_edge(&mut ctx.device.EXTI, gpio::Edge::Falling);
+        */
 
         let mono = Timer::new(ctx.device.TIM2, &clocks).monotonic();
+
+        let (left_wheel, right_wheel) = {
+            let en_pins = (gpioa.pa8.into_alternate(), gpioa.pa9.into_alternate());
+            let en_pwms = Timer::new(ctx.device.TIM1, &clocks).pwm(en_pins, 2.khz());
+            let (left_en_pwm, right_en_pwm) = en_pwms;
+
+            let speed_pid = Pid::new(0.25, 0.02, 1.0,
+                               100.0, 100.0, 100.0,
+                               100.0,
+                               0.0);
+
+            ({
+                let in_1 = gpiob.pb10.into_push_pull_output();
+
+                let motor = TwoWirteDriver::new(left_en_pwm, in_1, WHEEL_MIN_DUTY);
+
+                let encoder_pins = (gpiob.pb4.into_alternate(), gpiob.pb5.into_alternate());
+                let encoder_timer = ctx.device.TIM3;
+                let qei = Qei::new(encoder_timer, encoder_pins);
+                let encoder = RotaryEncoder::new(qei, WHEEL_ENCODER_PPR, true);
+
+                Wheel::new(motor, encoder, speed_pid.clone(), WHEEL_MAX_ROTARY_SPEED, WHEEL_RADIUS)
+            },
+            {
+                let in_1 = gpioc.pc7.into_push_pull_output();
+
+                let motor = TwoWirteDriver::new(right_en_pwm, in_1, WHEEL_MIN_DUTY);
+
+                let encoder_pins = (gpioa.pa0.into_alternate(), gpioa.pa1.into_alternate());
+                let encoder_timer = ctx.device.TIM5;
+                let qei = Qei::new(encoder_timer, encoder_pins);
+                let encoder = RotaryEncoder::new(qei, WHEEL_ENCODER_PPR, true);
+
+                Wheel::new(motor, encoder, speed_pid.clone(), WHEEL_MAX_ROTARY_SPEED, WHEEL_RADIUS)
+            })
+        };
 
         let rx = gpioa.pa3.into_alternate();
         let tx = gpioa.pa2.into_alternate();
@@ -128,9 +205,8 @@ mod app {
 
         (
             Shared {
-                platform_stepper,
-                platform_limit,
-                enable_pin: en,
+                left: left_wheel,
+                right: right_wheel,
                 serial_tx, serial_rx,
             },
             Local {
@@ -191,6 +267,7 @@ mod app {
         line::spawn_after(100_u32.micros()).ok();
     }
 
+    /*
     #[task(shared = [platform_stepper], priority = 15)]
     fn platform(mut cx: platform::Context) {
         cx.shared.platform_stepper.lock(|stepper| {
@@ -200,6 +277,7 @@ mod app {
             }
         });
     }
+    */
 
     #[task(binds = USART2, shared = [serial_rx], priority = 10)]
     fn uart_rx(mut cx: uart_rx::Context) {
