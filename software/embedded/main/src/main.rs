@@ -31,9 +31,10 @@ macro_rules! wheel_alias {
 
 #[rtic::app(device = stm32f4xx_hal::pac, peripherals = true, dispatchers = [EXTI1, EXTI2, EXTI3])]
 mod app {
-    use core::ops;
+    use core::fmt::Write;
 
     use embedded_hal::{digital::v2::OutputPin, blocking::{i2c, delay::DelayMs}};
+    use motor::GetSpeed;
     use rtt_target::{rtt_init_print, rprintln, rprint};
 
     use stm32f4xx_hal::{
@@ -66,6 +67,9 @@ mod app {
     use wheel::Wheel;
 
     use crate::line_sensor::{LineSensor, NUM_SENSORS};
+
+    const LINE_DEBUG: bool = false;
+    const WHEELS_DEBUG: bool = true;
 
     const EDGE_THRESHOLD: u16 = 110;
     const WHEEL_MIN_DUTY: u8 = 100;
@@ -202,6 +206,7 @@ mod app {
 	    let (serial_tx, serial_rx) = serial.split();
 
         line::spawn().ok();
+        if WHEELS_DEBUG { speed_printer::spawn().ok(); }
 
         (
             Shared {
@@ -254,17 +259,27 @@ mod app {
             for v in derivative {
                 let mut s = [0_u8; 11];
                 tx.bwrite_all(v.numtoa(10, &mut s)).unwrap();
-                block!(tx.write(' ' as u8)).unwrap();
+                if LINE_DEBUG { block!(tx.write(' ' as u8)).unwrap(); }
             }
             for v in vals {
                 let mut s = [0_u8; 11];
                 tx.bwrite_all(v.numtoa(10, &mut s)).unwrap();
-                block!(tx.write(' ' as u8)).unwrap();
+                if LINE_DEBUG { block!(tx.write(' ' as u8)).unwrap(); }
             }
-            block!(tx.write('\n' as u8)).unwrap();
+            if LINE_DEBUG { block!(tx.write('\n' as u8)).unwrap(); }
         });
 
         line::spawn_after(100_u32.micros()).ok();
+    }
+
+    #[task(shared = [left, right, serial_tx])]
+    fn speed_printer(cx: speed_printer::Context) {
+        (cx.shared.left, cx.shared.right,
+         cx.shared.serial_tx).lock(|left, right, serial_tx| {
+            writeln!(serial_tx, "{} {} {} {}", left.get_target_speed(), left.get_speed(),
+                                               right.get_target_speed(), right.get_speed()).ok();
+        });
+        line::spawn_after(100_u32.millis()).ok();
     }
 
     /*
