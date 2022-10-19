@@ -63,6 +63,7 @@ mod app {
 
     use stepper::{Stepper, StepperDireciton};
     use rotary_encoder::RotaryEncoder;
+    use encoder::Update;
     use dc_motor::TwoWirteDriver;
     use wheel::Wheel;
 
@@ -206,6 +207,7 @@ mod app {
 	    let (serial_tx, serial_rx) = serial.split();
 
         line::spawn().ok();
+        updater::spawn().ok();
         if WHEELS_DEBUG { speed_printer::spawn().ok(); }
 
         (
@@ -279,7 +281,22 @@ mod app {
             writeln!(serial_tx, "{} {} {} {}", left.get_target_speed(), left.get_speed(),
                                                right.get_target_speed(), right.get_speed()).ok();
         });
-        line::spawn_after(100_u32.millis()).ok();
+        speed_printer::spawn_after(100_u32.millis()).ok();
+    }
+
+
+    #[task(shared = [left, right])]
+    fn updater(mut cx: updater::Context) {
+        const TIME_DELTA_SECONDS: f32 = 0.025;
+
+        cx.shared.left.lock(|left| {
+            left.update(TIME_DELTA_SECONDS);
+        });
+        cx.shared.right.lock(|right| {
+            right.update(TIME_DELTA_SECONDS);
+        });
+
+        updater::spawn_after(25.millis()).ok();
     }
 
     /*

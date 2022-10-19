@@ -10,6 +10,7 @@ use embedded_hal::{
 };
 
 use motor::{RotationDirection, SetSpeed, GetSpeed, SetDirection};
+use num_traits::NumCast;
 
 pub trait NumOps<T: Sized> = Add<T, Output = T> 
                                 + Sub<T, Output = T> 
@@ -17,8 +18,7 @@ pub trait NumOps<T: Sized> = Add<T, Output = T>
                                 + Mul<T, Output = T>;
 
 
-fn map_range<T: Copy + NumOps<T>>(from_range: (T, T), to_range: (T, T), s: T) -> T 
-{
+fn map_range<T: Copy + NumOps<T>>(from_range: (T, T), to_range: (T, T), s: T) -> T {
     to_range.0 + (s - from_range.0) * (to_range.1 - to_range.0) / (from_range.1 - from_range.0)
 }
 
@@ -60,18 +60,20 @@ where
 impl<PWM, DIR> SetSpeed for TwoWirteDriver<PWM, DIR>
 where
     PWM: PwmPin,
-    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty>,
+    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty> + NumCast,
     DIR: OutputPin
 {
     type Speed = u8;
 
     fn set_speed(&mut self, speed: Self::Speed) {
         self.current_speed = speed.min(100);
+        // these casts fucking suck but i do not feel like dealing with type right now
         let duty = {
-            let duty: PWM::Duty = map_range(
-                (1_u8.into(), 100_u8.into()),
-                (self.min_speed.into(), self.speed_pin.get_max_duty()),
-                self.current_speed.into()); 
+            let duty: PWM::Duty = NumCast::from(map_range::<i32>(
+                (0_u8.into(), 100_u8.into()),
+                (self.min_speed.into(),
+                    NumCast::from(self.speed_pin.get_max_duty()).unwrap()),
+                self.current_speed.into())).unwrap();
             if self.current_direction == RotationDirection::Clockwise {
                 self.speed_pin.get_max_duty() - duty
             }
@@ -88,7 +90,7 @@ where
 impl<PWM, DIR> GetSpeed for TwoWirteDriver<PWM, DIR>
 where
     PWM: PwmPin,
-    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty>,
+    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty> + NumCast,
     DIR: OutputPin
 {
     type Speed = u8;
@@ -101,7 +103,7 @@ where
 impl<PWM, DIR> SetDirection for TwoWirteDriver<PWM, DIR>
 where
     PWM: PwmPin,
-    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty>,
+    PWM::Duty: From<u8> + Copy + NumOps<PWM::Duty> + NumCast,
     DIR: OutputPin
 {
     fn set_direction(&mut self, direction: RotationDirection) {
